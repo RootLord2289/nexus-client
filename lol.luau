@@ -18,6 +18,10 @@ local IsBinding = false
 local ESP_Config = { Enabled = false, Boxes = false, Names = false, Health = false, Glow = false, VisCheck = false }
 local Aim_Config = { Enabled = false, ShowFOV = false, LMB_Active = false, RMB_Active = false, Radius = 150, Smooth = 0.2, Instant = 1.0 }
 
+-- --- CHEATS LIST CONFIG ---
+local List_Config = { Enabled = false, Position = "TopRight" }
+local ActiveLabels = {}
+
 local ESP_Objects = {}
 local VISIBLE_COLOR = Color3.fromRGB(0, 255, 0)
 local HIDDEN_COLOR = Color3.fromRGB(255, 0, 0)
@@ -38,6 +42,89 @@ local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "Sakurasi_V4"
 ScreenGui.Parent = game.CoreGui
 ScreenGui.ResetOnSpawn = false
+
+-- --- CHEATS LIST UI ---
+local ListFrame = Instance.new("Frame", ScreenGui)
+ListFrame.Size = UDim2.new(0, 250, 0, 500)
+ListFrame.BackgroundTransparency = 1
+ListFrame.Visible = false
+
+local ListLayout = Instance.new("UIListLayout", ListFrame)
+ListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+ListLayout.Padding = UDim.new(0, 8)
+
+local function UpdateListPos()
+    if List_Config.Position == "TopLeft" then
+        ListFrame.Position = UDim2.new(0, 15, 0, 15)
+        ListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+    elseif List_Config.Position == "TopRight" then
+        ListFrame.Position = UDim2.new(1, -265, 0, 15)
+        ListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+    elseif List_Config.Position == "BottomLeft" then
+        ListFrame.Position = UDim2.new(0, 15, 1, -515)
+        ListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+    elseif List_Config.Position == "BottomRight" then
+        ListFrame.Position = UDim2.new(1, -265, 1, -515)
+        ListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+    end
+end
+
+local function UpdateCheatList(name, state)
+    if state and List_Config.Enabled then
+        if not ActiveLabels[name] then
+            local container = Instance.new("Frame", ListFrame)
+            -- Оставляем AutomaticSize только для ширины (X), высоту будем анимировать вручную
+            container.AutomaticSize = Enum.AutomaticSize.X 
+            container.Size = UDim2.new(0, 0, 0, 0) -- Начинаем с нулевой высоты
+            container.ClipsDescendants = true -- Чтобы текст не торчал, пока плашка плоская
+            container.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+            container.BackgroundTransparency = 1
+            Instance.new("UICorner", container).CornerRadius = UDim.new(0, 8)
+            
+            local padding = Instance.new("UIPadding", container)
+            padding.PaddingLeft = UDim.new(0, 12); padding.PaddingRight = UDim.new(0, 12)
+            
+            local Label = Instance.new("TextLabel", container)
+            Label.AutomaticSize = Enum.AutomaticSize.X
+            Label.Size = UDim2.new(0, 0, 0, 32) -- Фиксируем высоту текста для стабильности
+            Label.BackgroundTransparency = 1
+            Label.TextColor3 = Color3.new(1, 1, 1)
+            Label.TextTransparency = 1
+            Label.TextSize = 15
+            Label.Font = Enum.Font.GothamBold
+            Label.RichText = true
+            Label.Text = name .. ": <font color='rgb(46, 204, 113)'>ON</font>"
+            
+            ActiveLabels[name] = container
+            
+            -- АНИМАЦИЯ ПОЯВЛЕНИЯ (Раскрытие по высоте)
+            TweenService:Create(container, TweenInfo.new(0.4, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+                Size = UDim2.new(0, 0, 0, 32), -- Раскрываем до 32 пикселей
+                BackgroundTransparency = 0
+            }):Play()
+            TweenService:Create(Label, TweenInfo.new(0.4, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+                TextTransparency = 0
+            }):Play()
+        end
+    else
+        if ActiveLabels[name] then
+            local item = ActiveLabels[name]
+            ActiveLabels[name] = nil
+            
+            -- АНИМАЦИЯ ИСЧЕЗНОВЕНИЯ (Схлопывание по высоте)
+            local t1 = TweenService:Create(item, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {
+                Size = UDim2.new(0, 0, 0, 0), -- Схлопываем в 0
+                BackgroundTransparency = 1
+            })
+            local t2 = TweenService:Create(item:FindFirstChildOfClass("TextLabel"), TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {
+                TextTransparency = 1
+            })
+            
+            t1:Play(); t2:Play()
+            t1.Completed:Connect(function() item:Destroy() end)
+        end
+    end
+end
 
 -- --- NOTIFY SYSTEM ---
 local NotifyFrame = Instance.new("Frame", ScreenGui)
@@ -151,9 +238,14 @@ ContentFrame.Size = UDim2.new(1, -130, 1, -45)
 ContentFrame.Position = UDim2.new(0, 125, 0, 40)
 ContentFrame.BackgroundTransparency = 1
 
-local Pages = { Movement = Instance.new("Frame", ContentFrame), Visuals = Instance.new("Frame", ContentFrame), Combat = Instance.new("Frame", ContentFrame), Keybinds = Instance.new("Frame", ContentFrame), Fun = Instance.new("Frame", ContentFrame) }
+local Pages = { Movement = Instance.new("Frame", ContentFrame), Visuals = Instance.new("ScrollingFrame", ContentFrame), Combat = Instance.new("Frame", ContentFrame), Keybinds = Instance.new("Frame", ContentFrame), Fun = Instance.new("Frame", ContentFrame) }
 for name, frame in pairs(Pages) do
     frame.Size = UDim2.new(1, 0, 1, 0); frame.BackgroundTransparency = 1; frame.Visible = (name == "Movement")
+    if frame:IsA("ScrollingFrame") then
+        frame.ScrollBarThickness = 2
+        frame.CanvasSize = UDim2.new(0, 0, 0, 450)
+        frame.ScrollBarImageColor3 = Color3.fromRGB(80, 80, 80)
+    end
 end
 
 local function CreateTab(name, pos)
@@ -203,14 +295,54 @@ CreateInput("SPIN SPEED", UDim2.new(0, 10, 0, 45), SpinSpeed, Pages.Movement, fu
 CreateInput("JUMP", UDim2.new(0, 10, 0, 80), JumpPower, Pages.Movement, function(v) JumpPower = v end)
 CreateInput("FLY SPD", UDim2.new(0, 10, 0, 115), FlySpeed, Pages.Movement, function(v) FlySpeed = v end)
 
-CreateToggle("ESP MASTER", UDim2.new(0, 10, 0, 10), false, Pages.Visuals, function(s) ESP_Config.Enabled = s if not s then for _, p in pairs(Players:GetPlayers()) do removeESP(p) end end end)
+CreateToggle("ESP MASTER", UDim2.new(0, 10, 0, 10), false, Pages.Visuals, function(s) 
+    ESP_Config.Enabled = s 
+    if not s then for _, p in pairs(Players:GetPlayers()) do removeESP(p) end end 
+    UpdateCheatList("ESP", s) 
+end)
 CreateToggle("Show Boxes", UDim2.new(0, 10, 0, 45), false, Pages.Visuals, function(s) ESP_Config.Boxes = s end)
 CreateToggle("Show Names", UDim2.new(0, 10, 0, 80), false, Pages.Visuals, function(s) ESP_Config.Names = s end)
 CreateToggle("Show Health", UDim2.new(0, 10, 0, 115), false, Pages.Visuals, function(s) ESP_Config.Health = s end)
 CreateToggle("Glow", UDim2.new(0, 10, 0, 150), false, Pages.Visuals, function(s) ESP_Config.Glow = s end)
 CreateToggle("Wall Check", UDim2.new(0, 10, 0, 185), false, Pages.Visuals, function(s) ESP_Config.VisCheck = s end)
 
-CreateToggle("AIMBOT MASTER", UDim2.new(0, 10, 0, 10), false, Pages.Combat, function(s) Aim_Config.Enabled = s end)
+local Divider = Instance.new("TextLabel", Pages.Visuals)
+Divider.Text = "- - Cheats List - -"
+Divider.Size = UDim2.new(0, 210, 0, 20); Divider.Position = UDim2.new(0, 10, 0, 220)
+Divider.BackgroundTransparency = 1; Divider.TextColor3 = Color3.fromRGB(150, 150, 150)
+Divider.Font = Enum.Font.GothamBold; Divider.TextSize = 10
+
+CreateToggle("Show List", UDim2.new(0, 10, 0, 245), false, Pages.Visuals, function(s) 
+    List_Config.Enabled = s
+    ListFrame.Visible = s
+    if not s then for n, l in pairs(ActiveLabels) do l:Destroy() end ActiveLabels = {} end
+    -- Обновляем текущие статусы при включении списка
+    if s then
+        UpdateCheatList("ESP", ESP_Config.Enabled)
+        UpdateCheatList("Aimbot", Aim_Config.Enabled)
+        UpdateCheatList("Fly", Flying)
+        UpdateCheatList("Noclip", Noclip)
+        UpdateCheatList("S3X", IsS3xing)
+        UpdateCheatList("Spin", IsSpinning)
+    end
+end)
+
+local PosBtn = Instance.new("TextButton", Pages.Visuals)
+PosBtn.Size = UDim2.new(0, 210, 0, 25); PosBtn.Position = UDim2.new(0, 10, 0, 280)
+PosBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50); PosBtn.Text = "Position: TopRight"
+PosBtn.TextColor3 = Color3.new(1, 1, 1); PosBtn.Font = Enum.Font.GothamBold; PosBtn.TextSize = 11; Instance.new("UICorner", PosBtn)
+
+local posTable = {"TopRight", "TopLeft", "BottomRight", "BottomLeft"}
+local curPos = 1
+PosBtn.MouseButton1Click:Connect(function()
+    curPos = curPos % #posTable + 1
+    List_Config.Position = posTable[curPos]
+    PosBtn.Text = "Position: " .. List_Config.Position
+    UpdateListPos()
+end)
+UpdateListPos()
+
+CreateToggle("AIMBOT MASTER", UDim2.new(0, 10, 0, 10), false, Pages.Combat, function(s) Aim_Config.Enabled = s UpdateCheatList("Aimbot", s) end)
 CreateToggle("Show FOV", UDim2.new(0, 10, 0, 45), false, Pages.Combat, function(s) Aim_Config.ShowFOV = s end)
 CreateToggle("LMB (Instant)", UDim2.new(0, 10, 0, 80), false, Pages.Combat, function(s) Aim_Config.LMB_Active = s end)
 CreateToggle("RMB (Smooth)", UDim2.new(0, 10, 0, 115), false, Pages.Combat, function(s) Aim_Config.RMB_Active = s end)
@@ -302,27 +434,67 @@ RunService.Stepped:Connect(function()
     end
 end)
 
+-- Найди этот блок в конце скрипта и замени его на этот исправленный:
 UIS.InputBegan:Connect(function(i, gpe)
     if i.UserInputType == Enum.UserInputType.MouseButton1 then HoldingLMB = true end
     if i.UserInputType == Enum.UserInputType.MouseButton2 then HoldingRMB = true end
-    if gpe or IsBinding then return end
-    if i.KeyCode == MenuKey then ToggleMenu()
-    elseif i.KeyCode == FlyKey and Player.Character:FindFirstChild("HumanoidRootPart") then
-        Flying = not Flying
-        local hrp = Player.Character.HumanoidRootPart
-        if Flying then
-            Instance.new("BodyVelocity", hrp).Name = "FlyV"; hrp.FlyV.MaxForce = Vector3.new(1e6,1e6,1e6)
-            Instance.new("BodyGyro", hrp).Name = "FlyG"; hrp.FlyG.MaxTorque = Vector3.new(1e6,1e6,1e6)
-            Player.Character.Humanoid.PlatformStand = true
-        else
-            Player.Character.Humanoid.PlatformStand = false
-            if hrp:FindFirstChild("FlyV") then hrp.FlyV:Destroy() end
-            if hrp:FindFirstChild("FlyG") then hrp.FlyG:Destroy() end
+    
+    -- gpe (GameProcessedEvent) игнорируем, чтобы кнопки работали, даже если открыт чат (по твоему желанию)
+    -- Но если хочешь, чтобы в чате не срабатывало, оставь: if gpe then return end
+    if IsBinding then return end
+
+    if i.KeyCode == MenuKey then 
+        ToggleMenu()
+    elseif i.KeyCode == FlyKey then
+        -- Проверяем наличие персонажа перед включением
+        if Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
+            Flying = not Flying
+            local hrp = Player.Character.HumanoidRootPart
+            local hum = Player.Character:FindFirstChildOfClass("Humanoid")
+
+            if Flying then
+                -- Создаем силы для полета
+                local bv = Instance.new("BodyVelocity", hrp)
+                bv.Name = "FlyV"
+                bv.MaxForce = Vector3.new(1e6, 1e6, 1e6)
+                bv.Velocity = Vector3.new(0, 0, 0)
+
+                local bg = Instance.new("BodyGyro", hrp)
+                bg.Name = "FlyG"
+                bg.MaxTorque = Vector3.new(1e6, 1e6, 1e6)
+                bg.CFrame = hrp.CFrame
+                
+                if hum then hum.PlatformStand = true end
+            else
+                -- Убираем силы
+                if hrp:FindFirstChild("FlyV") then hrp.FlyV:Destroy() end
+                if hrp:FindFirstChild("FlyG") then hrp.FlyG:Destroy() end
+                if hum then hum.PlatformStand = false end
+            end
+            
+            ShowNotify("Fly", Flying and "ON" or "OFF", Flying)
+            UpdateCheatList("Fly", Flying) -- Это добавит/уберет плашку с анимацией
         end
-        ShowNotify("Fly", Flying and "ON" or "OFF", Flying)
-    elseif i.KeyCode == NoclipKey then Noclip = not Noclip; ShowNotify("Noclip", Noclip and "ON" or "OFF", Noclip)
-    elseif i.KeyCode == S3xKey then if not S3xEnabled then ShowNotify("Enable S3X in menu!", "", false) else IsS3xing = not IsS3xing; ShowNotify("S3X", IsS3xing and "ON" or "OFF", IsS3xing) end
-    elseif i.KeyCode == SpinKey then if not Spin3313Enabled then ShowNotify("Enable 3313 in menu!", "", false) else IsSpinning = not IsSpinning; ShowNotify("3313 Spin", IsSpinning and "ON" or "OFF", IsSpinning) end
+    elseif i.KeyCode == NoclipKey then 
+        Noclip = not Noclip 
+        ShowNotify("Noclip", Noclip and "ON" or "OFF", Noclip)
+        UpdateCheatList("Noclip", Noclip)
+    elseif i.KeyCode == S3xKey then 
+        if not S3xEnabled then 
+            ShowNotify("Enable S3X in menu!", "", false) 
+        else 
+            IsS3xing = not IsS3xing
+            ShowNotify("S3X", IsS3xing and "ON" or "OFF", IsS3xing) 
+            UpdateCheatList("S3X", IsS3xing) 
+        end
+    elseif i.KeyCode == SpinKey then 
+        if not Spin3313Enabled then 
+            ShowNotify("Enable 3313 in menu!", "", false) 
+        else 
+            IsSpinning = not IsSpinning
+            ShowNotify("3313 Spin", IsSpinning and "ON" or "OFF", IsSpinning) 
+            UpdateCheatList("Spin", IsSpinning) 
+        end
     end
 end)
 
