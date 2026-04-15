@@ -332,4 +332,4 @@ UIS.InputEnded:Connect(function(i)
 end)
 
 Players.PlayerRemoving:Connect(removeESP)
-ShowNotify("Nexus Loaded", "V4 Sakurasi", true)
+ShowNotify("Nexus ", "Loaded", true)
