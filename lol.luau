@@ -3,6 +3,7 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Player = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
 
 local Flying, Noclip = false, false
 local S3xEnabled, Spin3313Enabled = false, false
@@ -13,19 +14,31 @@ local FlyKey, NoclipKey, MenuKey = Enum.KeyCode.J, Enum.KeyCode.N, Enum.KeyCode.
 local S3xKey, SpinKey = Enum.KeyCode.H, Enum.KeyCode.V
 local IsBinding = false
 
+-- --- НОВАЯ ДЕТАЛЬНАЯ КОНФИГУРАЦИЯ ESP ---
+local ESP_Config = {
+    Enabled = false,
+    Boxes = false,
+    Names = false,
+    Health = false,
+    Glow = false,
+    VisCheck = false
+}
+
+local ESP_Objects = {}
+local VISIBLE_COLOR = Color3.fromRGB(0, 255, 0)
+local HIDDEN_COLOR = Color3.fromRGB(255, 0, 0)
+
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "Sakurasi_V4"
 ScreenGui.Parent = game.CoreGui
 ScreenGui.ResetOnSpawn = false
 
--- --- NOTIFY SYSTEM ---
+-- --- NOTIFY SYSTEM (Твой оригинал) ---
 local NotifyFrame = Instance.new("Frame", ScreenGui)
 NotifyFrame.Size = UDim2.new(0, 240, 0, 45)
 NotifyFrame.Position = UDim2.new(0.5, 0, 0, -100)
 NotifyFrame.AnchorPoint = Vector2.new(0.5, 0.5)
 NotifyFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-NotifyFrame.BorderSizePixel = 0
-NotifyFrame.ZIndex = 1000
 Instance.new("UICorner", NotifyFrame).CornerRadius = UDim.new(0, 10)
 local NotifyScale = Instance.new("UIScale", NotifyFrame)
 NotifyScale.Scale = 0 
@@ -36,7 +49,6 @@ NotifyLabel.TextColor3 = Color3.new(1, 1, 1)
 NotifyLabel.Font = Enum.Font.GothamBold
 NotifyLabel.TextSize = 14
 NotifyLabel.RichText = true
-NotifyLabel.ZIndex = 1001
 
 local activeTweenPos, activeTweenScale
 local notifyTimer = 0
@@ -60,15 +72,45 @@ local function ShowNotify(feature, status, isEnabled)
     end)
 end
 
--- --- MAIN MENU ---
+-- --- ESP LOGIC (Обновленная под тумблеры) ---
+local function isVisible(targetPart)
+    if not targetPart then return false end
+    local char = Player.Character
+    if not char then return false end
+    local params = RaycastParams.new()
+    params.FilterType = Enum.RaycastFilterType.Exclude
+    params.FilterDescendantsInstances = {char, targetPart.Parent}
+    local result = workspace:Raycast(Camera.CFrame.Position, (targetPart.Position - Camera.CFrame.Position), params)
+    return result == nil
+end
+
+local function createESP(player)
+    local box = Drawing.new("Square")
+    box.Thickness = 1; box.Filled = false; box.Visible = false
+    local healthText = Drawing.new("Text")
+    healthText.Size = 14; healthText.Center = true; healthText.Outline = true; healthText.Visible = false
+    local nameText = Drawing.new("Text")
+    nameText.Size = 14; nameText.Center = true; nameText.Outline = true; nameText.Visible = false; nameText.Text = player.Name
+    ESP_Objects[player] = {Box = box, Health = healthText, Name = nameText}
+end
+
+local function removeESP(p)
+    if ESP_Objects[p] then
+        ESP_Objects[p].Box:Remove()
+        ESP_Objects[p].Health:Remove()
+        ESP_Objects[p].Name:Remove()
+        ESP_Objects[p] = nil
+    end
+    if p.Character and p.Character:FindFirstChild("SakurasiGlow") then p.Character.SakurasiGlow:Destroy() end
+end
+
+-- --- MAIN MENU (Оригинальный стиль) ---
 local MainFrame = Instance.new("Frame", ScreenGui)
 MainFrame.Size = UDim2.new(0, 450, 0, 300)
 MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
 MainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
 MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-MainFrame.Active = true
-MainFrame.Draggable = true
-MainFrame.ClipsDescendants = true
+MainFrame.Active = true; MainFrame.Draggable = true
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 12)
 local MainScale = Instance.new("UIScale", MainFrame)
 
@@ -82,7 +124,7 @@ ContentFrame.Size = UDim2.new(1, -130, 1, -45)
 ContentFrame.Position = UDim2.new(0, 125, 0, 40)
 ContentFrame.BackgroundTransparency = 1
 
-local Pages = { Movement = Instance.new("Frame", ContentFrame), Keybinds = Instance.new("Frame", ContentFrame), Fun = Instance.new("Frame", ContentFrame) }
+local Pages = { Movement = Instance.new("Frame", ContentFrame), Visuals = Instance.new("Frame", ContentFrame), Keybinds = Instance.new("Frame", ContentFrame), Fun = Instance.new("Frame", ContentFrame) }
 for name, frame in pairs(Pages) do
     frame.Size = UDim2.new(1, 0, 1, 0); frame.BackgroundTransparency = 1; frame.Visible = (name == "Movement")
 end
@@ -91,7 +133,7 @@ local function CreateTab(name, pos)
     local btn = Instance.new("TextButton", Sidebar)
     btn.Size = UDim2.new(0.9, 0, 0, 40); btn.Position = UDim2.new(0.05, 0, 0, pos); btn.Text = name
     btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60); btn.BackgroundTransparency = (name == "Movement") and 0 or 1
-    btn.TextColor3 = Color3.new(1, 1, 1); btn.Font = Enum.Font.GothamBold; btn.TextSize = 14
+    btn.TextColor3 = Color3.new(1, 1, 1); btn.Font = Enum.Font.GothamBold; btn.TextSize = 14; btn.Name = name
     Instance.new("UICorner", btn)
     btn.MouseButton1Click:Connect(function()
         for pName, p in pairs(Pages) do
@@ -99,141 +141,137 @@ local function CreateTab(name, pos)
             if Sidebar:FindFirstChild(pName) then Sidebar[pName].BackgroundTransparency = (pName == name) and 0 or 1 end
         end
     end)
-    btn.Name = name
 end
 
-CreateTab("Movement", 15); CreateTab("Keybinds", 65); CreateTab("Fun", 115)
+CreateTab("Movement", 15); CreateTab("Visuals", 65); CreateTab("Keybinds", 115); CreateTab("Fun", 165)
 
 local function CreateToggle(text, pos, default, parent, callback)
     local btn = Instance.new("TextButton", parent)
-    btn.Size = UDim2.new(0, 210, 0, 35); btn.Position = pos
+    btn.Size = UDim2.new(0, 210, 0, 32); btn.Position = pos
     btn.BackgroundColor3 = default and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(50, 50, 50)
     btn.Text = text .. ": " .. (default and "ON" or "OFF")
-    btn.TextColor3 = Color3.new(1, 1, 1); btn.Font = Enum.Font.GothamBold; btn.TextSize = 14
+    btn.TextColor3 = Color3.new(1, 1, 1); btn.Font = Enum.Font.GothamBold; btn.TextSize = 12
     Instance.new("UICorner", btn)
     local state = default
     btn.MouseButton1Click:Connect(function()
         state = not state; btn.BackgroundColor3 = state and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(50, 50, 50)
         btn.Text = text .. ": " .. (state and "ON" or "OFF"); callback(state)
     end)
+    return btn
 end
 
+-- --- ВСЕ НАСТРОЙКИ (Как ты просил) ---
 local function CreateInput(text, pos, default, parent, callback)
-    local Label = Instance.new("TextLabel", parent)
-    Label.Text = text; Label.Size = UDim2.new(0, 100, 0, 35); Label.Position = pos; Label.TextColor3 = Color3.new(1, 1, 1)
-    Label.BackgroundTransparency = 1; Label.Font = Enum.Font.GothamBold; Label.TextSize = 12; Label.TextXAlignment = Enum.TextXAlignment.Left
-    
-    local Input = Instance.new("TextBox", parent)
-    Input.Size = UDim2.new(0, 100, 0, 35); Input.Position = pos + UDim2.new(0, 110, 0, 0); Input.Text = tostring(default)
-    Input.BackgroundColor3 = Color3.fromRGB(50, 50, 50); Input.TextColor3 = Color3.new(1, 1, 1); Input.Font = Enum.Font.GothamBold; Input.TextSize = 16
-    Input.ClearTextOnFocus = false -- ВОТ ЭТО ОСТАВЛЯЕТ ТЕКСТ ПРИ КЛИКЕ
-    Instance.new("UICorner", Input)
-    
-    local lastValidValue = tostring(default)
-    
-    Input:GetPropertyChangedSignal("Text"):Connect(function()
-        local filtered = Input.Text:gsub("%D", "") -- Только цифры
-        if filtered ~= Input.Text then
-            Input.Text = filtered
-        end
-    end)
-
-    Input.FocusLost:Connect(function()
-        local num = tonumber(Input.Text)
-        if num then
-            lastValidValue = Input.Text
-            callback(num)
-        else
-            Input.Text = lastValidValue -- Возвращает старое, если стер всё
-        end
-    end)
+    local Label = Instance.new("TextLabel", parent); Label.Text = text; Label.Size = UDim2.new(0, 100, 0, 35); Label.Position = pos; Label.TextColor3 = Color3.new(1, 1, 1); Label.BackgroundTransparency = 1; Label.Font = Enum.Font.GothamBold; Label.TextSize = 12; Label.TextXAlignment = Enum.TextXAlignment.Left
+    local Input = Instance.new("TextBox", parent); Input.Size = UDim2.new(0, 100, 0, 35); Input.Position = pos + UDim2.new(0, 110, 0, 0); Input.Text = tostring(default); Input.BackgroundColor3 = Color3.fromRGB(50, 50, 50); Input.TextColor3 = Color3.new(1, 1, 1); Input.Font = Enum.Font.GothamBold; Input.TextSize = 16; Input.ClearTextOnFocus = false; Instance.new("UICorner", Input)
+    Input.FocusLost:Connect(function() local num = tonumber(Input.Text) if num then callback(num) end end)
 end
 
 local function CreateBind(text, pos, defaultKey, parent, callback)
-    local Label = Instance.new("TextLabel", parent)
-    Label.Text = text; Label.Size = UDim2.new(0, 100, 0, 35); Label.Position = pos; Label.TextColor3 = Color3.new(1, 1, 1)
-    Label.BackgroundTransparency = 1; Label.Font = Enum.Font.GothamBold; Label.TextSize = 12; Label.TextXAlignment = Enum.TextXAlignment.Left
-    local BindBtn = Instance.new("TextButton", parent)
-    BindBtn.Size = UDim2.new(0, 100, 0, 35); BindBtn.Position = pos + UDim2.new(0, 110, 0, 0); BindBtn.Text = defaultKey.Name
-    BindBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50); BindBtn.TextColor3 = Color3.new(1, 1, 1); BindBtn.Font = Enum.Font.GothamBold; BindBtn.TextSize = 14
-    Instance.new("UICorner", BindBtn)
-    BindBtn.MouseButton1Click:Connect(function()
-        if IsBinding then return end
-        IsBinding, BindBtn.Text = true, "..."
-        local conn; conn = UIS.InputBegan:Connect(function(i)
-            if i.UserInputType == Enum.UserInputType.Keyboard then
-                BindBtn.Text = i.KeyCode.Name; callback(i.KeyCode); conn:Disconnect(); task.wait(0.1); IsBinding = false
-            end
-        end)
-    end)
+    local Label = Instance.new("TextLabel", parent); Label.Text = text; Label.Size = UDim2.new(0, 100, 0, 35); Label.Position = pos; Label.TextColor3 = Color3.new(1, 1, 1); Label.BackgroundTransparency = 1; Label.Font = Enum.Font.GothamBold; Label.TextSize = 12; Label.TextXAlignment = Enum.TextXAlignment.Left
+    local BindBtn = Instance.new("TextButton", parent); BindBtn.Size = UDim2.new(0, 100, 0, 35); BindBtn.Position = pos + UDim2.new(0, 110, 0, 0); BindBtn.Text = defaultKey.Name; BindBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50); BindBtn.TextColor3 = Color3.new(1, 1, 1); BindBtn.Font = Enum.Font.GothamBold; BindBtn.TextSize = 14; Instance.new("UICorner", BindBtn)
+    BindBtn.MouseButton1Click:Connect(function() if IsBinding then return end IsBinding = true; BindBtn.Text = "..."; local conn; conn = UIS.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.Keyboard then BindBtn.Text = i.KeyCode.Name; callback(i.KeyCode); conn:Disconnect(); task.wait(0.1); IsBinding = false end end) end)
 end
 
--- --- SETTINGS ---
+-- Movement
 CreateInput("SPEED", UDim2.new(0, 10, 0, 10), WalkSpeed, Pages.Movement, function(v) WalkSpeed = v end)
 CreateInput("SPIN SPEED", UDim2.new(0, 10, 0, 50), SpinSpeed, Pages.Movement, function(v) SpinSpeed = v end)
 CreateInput("JUMP", UDim2.new(0, 10, 0, 90), JumpPower, Pages.Movement, function(v) JumpPower = v end)
 CreateInput("FLY SPD", UDim2.new(0, 10, 0, 130), FlySpeed, Pages.Movement, function(v) FlySpeed = v end)
 
+-- Visuals (Детально)
+CreateToggle("ESP MASTER", UDim2.new(0, 10, 0, 10), false, Pages.Visuals, function(s) 
+    ESP_Config.Enabled = s 
+    if not s then for _, p in pairs(Players:GetPlayers()) do removeESP(p) end end
+end)
+CreateToggle("Show Boxes", UDim2.new(0, 10, 0, 47), false, Pages.Visuals, function(s) ESP_Config.Boxes = s end)
+CreateToggle("Show Names", UDim2.new(0, 10, 0, 84), false, Pages.Visuals, function(s) ESP_Config.Names = s end)
+CreateToggle("Show Health", UDim2.new(0, 10, 0, 121), false, Pages.Visuals, function(s) ESP_Config.Health = s end)
+CreateToggle("Glow (Highlight)", UDim2.new(0, 10, 0, 158), false, Pages.Visuals, function(s) ESP_Config.Glow = s end)
+CreateToggle("Wall Check", UDim2.new(0, 10, 0, 195), false, Pages.Visuals, function(s) ESP_Config.VisCheck = s end)
+
+-- Keybinds
 CreateBind("FLY KEY", UDim2.new(0, 10, 0, 10), FlyKey, Pages.Keybinds, function(k) FlyKey = k end)
 CreateBind("NOCLIP", UDim2.new(0, 10, 0, 50), NoclipKey, Pages.Keybinds, function(k) NoclipKey = k end)
 CreateBind("S3X KEY", UDim2.new(0, 10, 0, 90), S3xKey, Pages.Keybinds, function(k) S3xKey = k end)
 CreateBind("3313 KEY", UDim2.new(0, 10, 0, 130), SpinKey, Pages.Keybinds, function(k) SpinKey = k end)
 CreateBind("MENU", UDim2.new(0, 10, 0, 170), MenuKey, Pages.Keybinds, function(k) MenuKey = k end)
 
+-- Fun
 CreateToggle("S3X", UDim2.new(0, 10, 0, 10), false, Pages.Fun, function(s) S3xEnabled = s if not s then IsS3xing = false end end)
 CreateToggle("3313 SPIN", UDim2.new(0, 10, 0, 55), false, Pages.Fun, function(s) Spin3313Enabled = s if not s then IsSpinning = false end end)
 
-local menuVisible = true
-local function ToggleMenu()
-    menuVisible = not menuVisible
-    if menuVisible then
-        MainFrame.Visible = true
-        TweenService:Create(MainScale, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
-    else
-        local t = TweenService:Create(MainScale, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Scale = 0})
-        t:Play(); t.Completed:Connect(function() if not menuVisible then MainFrame.Visible = false end end)
-    end
-end
-
--- --- LOGIC ---
+-- --- ЛОГИКА (Оригинал + ESP) ---
 RunService.Stepped:Connect(function()
-    if Noclip and Player.Character then
-        for _, v in pairs(Player.Character:GetDescendants()) do if v:IsA("BasePart") then v.CanCollide = false end end
-    end
-    if Player.Character and Player.Character:FindFirstChild("Humanoid") then
-        Player.Character.Humanoid.WalkSpeed = WalkSpeed; Player.Character.Humanoid.JumpPower = JumpPower
-    end
-    if IsSpinning and Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
-        Player.Character.HumanoidRootPart.CFrame *= CFrame.Angles(0, math.rad(SpinSpeed/60), 0)
-    end
+    if Noclip and Player.Character then for _, v in pairs(Player.Character:GetDescendants()) do if v:IsA("BasePart") then v.CanCollide = false end end end
+    if Player.Character and Player.Character:FindFirstChild("Humanoid") then Player.Character.Humanoid.WalkSpeed = WalkSpeed; Player.Character.Humanoid.JumpPower = JumpPower end
+    if IsSpinning and Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then Player.Character.HumanoidRootPart.CFrame *= CFrame.Angles(0, math.rad(SpinSpeed/60), 0) end
     if IsS3xing and Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
-        local t = nil; local d = math.huge
-        for _, p in pairs(Players:GetPlayers()) do
-            if p ~= Player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-                local dist = (Player.Character.HumanoidRootPart.Position - p.Character.HumanoidRootPart.Position).Magnitude
-                if dist < d then t, d = p, dist end
-            end
-        end
+        local t, d = nil, math.huge
+        for _, p in pairs(Players:GetPlayers()) do if p ~= Player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then local dist = (Player.Character.HumanoidRootPart.Position - p.Character.HumanoidRootPart.Position).Magnitude if dist < d then t, d = p, dist end end end
         if t then Player.Character.HumanoidRootPart.CFrame = t.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, 1 + math.sin(tick()*25)*1.5) end
     end
 end)
 
--- --- FLY RENDER ---
 RunService.RenderStepped:Connect(function()
+    -- FLY
     if Flying and Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
         local hrp = Player.Character.HumanoidRootPart
         if hrp:FindFirstChild("FlyV") then
-            local cam = workspace.CurrentCamera
             local move = Vector3.new(0,0,0)
-            if UIS:IsKeyDown(Enum.KeyCode.W) then move = move + cam.CFrame.LookVector end
-            if UIS:IsKeyDown(Enum.KeyCode.S) then move = move - cam.CFrame.LookVector end
-            if UIS:IsKeyDown(Enum.KeyCode.A) then move = move - cam.CFrame.RightVector end
-            if UIS:IsKeyDown(Enum.KeyCode.D) then move = move + cam.CFrame.RightVector end
-            hrp.FlyV.Velocity = move * FlySpeed
-            hrp.FlyG.CFrame = cam.CFrame
+            if UIS:IsKeyDown(Enum.KeyCode.W) then move = move + Camera.CFrame.LookVector end
+            if UIS:IsKeyDown(Enum.KeyCode.S) then move = move - Camera.CFrame.LookVector end
+            if UIS:IsKeyDown(Enum.KeyCode.A) then move = move - Camera.CFrame.RightVector end
+            if UIS:IsKeyDown(Enum.KeyCode.D) then move = move + Camera.CFrame.RightVector end
+            hrp.FlyV.Velocity = move * FlySpeed; hrp.FlyG.CFrame = Camera.CFrame
+        end
+    end
+
+    -- ESP
+    if ESP_Config.Enabled then
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= Player then
+                if not ESP_Objects[p] then createESP(p) end
+                local obj = ESP_Objects[p]
+                local char = p.Character
+                if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChildOfClass("Humanoid") and char:FindFirstChildOfClass("Humanoid").Health > 0 then
+                    local root = char.HumanoidRootPart
+                    local pos, onScreen = Camera:WorldToViewportPoint(root.Position)
+                    if onScreen then
+                        local visible = isVisible(char:FindFirstChild("Head"))
+                        local color = (ESP_Config.VisCheck and not visible) and HIDDEN_COLOR or VISIBLE_COLOR
+                        
+                        if ESP_Config.Boxes then
+                            local scale = 1 / (pos.Z * math.tan(math.rad(Camera.FieldOfView * 0.5)) * 2) * 1000
+                            obj.Box.Size = Vector2.new(3 * scale, 4.5 * scale); obj.Box.Position = Vector2.new(pos.X - (3 * scale)/2, pos.Y - (4.5 * scale)/2)
+                            obj.Box.Color = color; obj.Box.Visible = true
+                        else obj.Box.Visible = false end
+                        
+                        obj.Name.Visible = ESP_Config.Names
+                        if ESP_Config.Names then obj.Name.Position = Vector2.new(pos.X, pos.Y - 40); obj.Name.Color = color end
+                        
+                        obj.Health.Visible = ESP_Config.Health
+                        if ESP_Config.Health then obj.Health.Text = math.floor(char:FindFirstChildOfClass("Humanoid").Health) .. "%"; obj.Health.Position = Vector2.new(pos.X, pos.Y - 25); obj.Health.Color = Color3.fromHSV(char:FindFirstChildOfClass("Humanoid").Health/300, 1, 1) end
+                        
+                        if ESP_Config.Glow then
+                            local g = char:FindFirstChild("SakurasiGlow") or Instance.new("Highlight", char); g.Name = "SakurasiGlow"; g.OutlineColor = color; g.FillColor = color; g.FillTransparency = 0.5
+                        elseif char:FindFirstChild("SakurasiGlow") then char.SakurasiGlow:Destroy() end
+                    else obj.Box.Visible = false; obj.Name.Visible = false; obj.Health.Visible = false end
+                else obj.Box.Visible = false; obj.Name.Visible = false; obj.Health.Visible = false end
+            end
         end
     end
 end)
+
+Players.PlayerRemoving:Connect(removeESP)
+
+-- --- МЕНЮ ТОГГЛ ---
+local menuVisible = true
+local function ToggleMenu()
+    menuVisible = not menuVisible
+    MainFrame.Visible = menuVisible
+    MainScale.Scale = menuVisible and 1 or 0
+end
 
 UIS.InputBegan:Connect(function(i, gpe)
     if gpe or IsBinding then return end
@@ -252,10 +290,8 @@ UIS.InputBegan:Connect(function(i, gpe)
         end
         ShowNotify("Fly", Flying and "ON" or "OFF", Flying)
     elseif i.KeyCode == NoclipKey then Noclip = not Noclip; ShowNotify("Noclip", Noclip and "ON" or "OFF", Noclip)
-    elseif i.KeyCode == S3xKey then
-        if not S3xEnabled then ShowNotify("Enable S3X in menu first!", "", false) else IsS3xing = not IsS3xing; ShowNotify("S3X", IsS3xing and "ON" or "OFF", IsS3xing) end
-    elseif i.KeyCode == SpinKey then
-        if not Spin3313Enabled then ShowNotify("Enable 3313 in menu first!", "", false) else IsSpinning = not IsSpinning; ShowNotify("3313 Spin", IsSpinning and "ON" or "OFF", IsSpinning) end
+    elseif i.KeyCode == S3xKey then if not S3xEnabled then ShowNotify("Enable S3X in menu!", "", false) else IsS3xing = not IsS3xing; ShowNotify("S3X", IsS3xing and "ON" or "OFF", IsS3xing) end
+    elseif i.KeyCode == SpinKey then if not Spin3313Enabled then ShowNotify("Enable 3313 in menu!", "", false) else IsSpinning = not IsSpinning; ShowNotify("3313 Spin", IsSpinning and "ON" or "OFF", IsSpinning) end
     end
 end)
 
