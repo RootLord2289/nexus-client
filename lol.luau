@@ -1,6 +1,5 @@
--- Вставь этот код вместо своего или обнови соответствующие части
-local Players = game:GetService("Players")
 local UIS = game:GetService("UserInputService")
+local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Player = Players.LocalPlayer
@@ -23,7 +22,9 @@ local ESP_Objects = {}
 local VISIBLE_COLOR = Color3.fromRGB(0, 255, 0)
 local HIDDEN_COLOR = Color3.fromRGB(255, 0, 0)
 
--- FOV Drawing
+local HoldingLMB, HoldingRMB = false, false
+
+-- FOV Circle Drawing
 local FOVCircle = Drawing.new("Circle")
 FOVCircle.Thickness = 1
 FOVCircle.NumSides = 100
@@ -32,8 +33,6 @@ FOVCircle.Filled = false
 FOVCircle.Visible = false
 FOVCircle.Color = Color3.fromRGB(255, 255, 255)
 FOVCircle.Transparency = 0.5
-
-local HoldingLMB, HoldingRMB = false, false
 
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "Sakurasi_V4"
@@ -79,7 +78,7 @@ local function ShowNotify(feature, status, isEnabled)
     end)
 end
 
--- --- AIMBOT HELPERS ---
+-- --- AIMBOT LOGIC ---
 local function getClosestPlayerInFOV()
     local closestPlayer = nil
     local shortestDistance = Aim_Config.Radius
@@ -103,11 +102,10 @@ local function getClosestPlayerInFOV()
     return closestPlayer
 end
 
--- --- ESP HELPERS ---
+-- --- ESP LOGIC ---
 local function isVisible(targetPart)
     if not targetPart then return false end
     local char = Player.Character
-    if not char then return false end
     local params = RaycastParams.new()
     params.FilterType = Enum.RaycastFilterType.Exclude
     params.FilterDescendantsInstances = {char, targetPart.Parent}
@@ -127,15 +125,13 @@ end
 
 local function removeESP(p)
     if ESP_Objects[p] then
-        ESP_Objects[p].Box:Remove()
-        ESP_Objects[p].Health:Remove()
-        ESP_Objects[p].Name:Remove()
+        ESP_Objects[p].Box:Remove(); ESP_Objects[p].Health:Remove(); ESP_Objects[p].Name:Remove()
         ESP_Objects[p] = nil
     end
     if p.Character and p.Character:FindFirstChild("SakurasiGlow") then p.Character.SakurasiGlow:Destroy() end
 end
 
--- --- MENU UI ---
+-- --- MAIN UI ---
 local MainFrame = Instance.new("Frame", ScreenGui)
 MainFrame.Size = UDim2.new(0, 450, 0, 320)
 MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
@@ -181,14 +177,12 @@ local function CreateToggle(text, pos, default, parent, callback)
     btn.Size = UDim2.new(0, 210, 0, 30); btn.Position = pos
     btn.BackgroundColor3 = default and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(50, 50, 50)
     btn.Text = text .. ": " .. (default and "ON" or "OFF")
-    btn.TextColor3 = Color3.new(1, 1, 1); btn.Font = Enum.Font.GothamBold; btn.TextSize = 11
-    Instance.new("UICorner", btn)
+    btn.TextColor3 = Color3.new(1, 1, 1); btn.Font = Enum.Font.GothamBold; btn.TextSize = 11; Instance.new("UICorner", btn)
     local state = default
     btn.MouseButton1Click:Connect(function()
         state = not state; btn.BackgroundColor3 = state and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(50, 50, 50)
         btn.Text = text .. ": " .. (state and "ON" or "OFF"); callback(state)
     end)
-    return btn
 end
 
 local function CreateInput(text, pos, default, parent, callback)
@@ -203,69 +197,61 @@ local function CreateBind(text, pos, defaultKey, parent, callback)
     BindBtn.MouseButton1Click:Connect(function() if IsBinding then return end IsBinding = true; BindBtn.Text = "..."; local conn; conn = UIS.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.Keyboard then BindBtn.Text = i.KeyCode.Name; callback(i.KeyCode); conn:Disconnect(); task.wait(0.1); IsBinding = false end end) end)
 end
 
--- --- PAGE CONTENT ---
--- Movement
+-- --- CONTENT ---
 CreateInput("SPEED", UDim2.new(0, 10, 0, 10), WalkSpeed, Pages.Movement, function(v) WalkSpeed = v end)
 CreateInput("SPIN SPEED", UDim2.new(0, 10, 0, 45), SpinSpeed, Pages.Movement, function(v) SpinSpeed = v end)
 CreateInput("JUMP", UDim2.new(0, 10, 0, 80), JumpPower, Pages.Movement, function(v) JumpPower = v end)
 CreateInput("FLY SPD", UDim2.new(0, 10, 0, 115), FlySpeed, Pages.Movement, function(v) FlySpeed = v end)
 
--- Visuals
 CreateToggle("ESP MASTER", UDim2.new(0, 10, 0, 10), false, Pages.Visuals, function(s) ESP_Config.Enabled = s if not s then for _, p in pairs(Players:GetPlayers()) do removeESP(p) end end end)
 CreateToggle("Show Boxes", UDim2.new(0, 10, 0, 45), false, Pages.Visuals, function(s) ESP_Config.Boxes = s end)
 CreateToggle("Show Names", UDim2.new(0, 10, 0, 80), false, Pages.Visuals, function(s) ESP_Config.Names = s end)
 CreateToggle("Show Health", UDim2.new(0, 10, 0, 115), false, Pages.Visuals, function(s) ESP_Config.Health = s end)
-CreateToggle("Glow (Highlight)", UDim2.new(0, 10, 0, 150), false, Pages.Visuals, function(s) ESP_Config.Glow = s end)
+CreateToggle("Glow", UDim2.new(0, 10, 0, 150), false, Pages.Visuals, function(s) ESP_Config.Glow = s end)
 CreateToggle("Wall Check", UDim2.new(0, 10, 0, 185), false, Pages.Visuals, function(s) ESP_Config.VisCheck = s end)
 
--- Combat (Aimbot)
 CreateToggle("AIMBOT MASTER", UDim2.new(0, 10, 0, 10), false, Pages.Combat, function(s) Aim_Config.Enabled = s end)
-CreateToggle("Show FOV Circle", UDim2.new(0, 10, 0, 45), false, Pages.Combat, function(s) Aim_Config.ShowFOV = s end)
+CreateToggle("Show FOV", UDim2.new(0, 10, 0, 45), false, Pages.Combat, function(s) Aim_Config.ShowFOV = s end)
 CreateToggle("LMB (Instant)", UDim2.new(0, 10, 0, 80), false, Pages.Combat, function(s) Aim_Config.LMB_Active = s end)
 CreateToggle("RMB (Smooth)", UDim2.new(0, 10, 0, 115), false, Pages.Combat, function(s) Aim_Config.RMB_Active = s end)
 CreateInput("FOV Radius", UDim2.new(0, 10, 0, 150), Aim_Config.Radius, Pages.Combat, function(v) Aim_Config.Radius = v FOVCircle.Radius = v end)
 
--- Keybinds
 CreateBind("FLY KEY", UDim2.new(0, 10, 0, 10), FlyKey, Pages.Keybinds, function(k) FlyKey = k end)
 CreateBind("NOCLIP", UDim2.new(0, 10, 0, 45), NoclipKey, Pages.Keybinds, function(k) NoclipKey = k end)
 CreateBind("S3X KEY", UDim2.new(0, 10, 0, 80), S3xKey, Pages.Keybinds, function(k) S3xKey = k end)
 CreateBind("3313 KEY", UDim2.new(0, 10, 0, 115), SpinKey, Pages.Keybinds, function(k) SpinKey = k end)
 CreateBind("MENU", UDim2.new(0, 10, 0, 150), MenuKey, Pages.Keybinds, function(k) MenuKey = k end)
 
--- Fun
 CreateToggle("S3X", UDim2.new(0, 10, 0, 10), false, Pages.Fun, function(s) S3xEnabled = s if not s then IsS3xing = false end end)
 CreateToggle("3313 SPIN", UDim2.new(0, 10, 0, 45), false, Pages.Fun, function(s) Spin3313Enabled = s if not s then IsSpinning = false end end)
 
--- --- MAIN LOGIC LOOP ---
-RunService.Stepped:Connect(function()
-    if Noclip and Player.Character then for _, v in pairs(Player.Character:GetDescendants()) do if v:IsA("BasePart") then v.CanCollide = false end end end
-    if Player.Character and Player.Character:FindFirstChild("Humanoid") then Player.Character.Humanoid.WalkSpeed = WalkSpeed; Player.Character.Humanoid.JumpPower = JumpPower end
-    if IsSpinning and Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then Player.Character.HumanoidRootPart.CFrame *= CFrame.Angles(0, math.rad(SpinSpeed/60), 0) end
-    if IsS3xing and Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
-        local t, d = nil, math.huge
-        for _, p in pairs(Players:GetPlayers()) do if p ~= Player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then local dist = (Player.Character.HumanoidRootPart.Position - p.Character.HumanoidRootPart.Position).Magnitude if dist < d then t, d = p, dist end end end
-        if t then Player.Character.HumanoidRootPart.CFrame = t.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, 1 + math.sin(tick()*25)*1.5) end
+-- --- ANIMATION ---
+local menuVisible = true
+local function ToggleMenu()
+    menuVisible = not menuVisible
+    if menuVisible then
+        MainFrame.Visible = true
+        TweenService:Create(MainScale, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
+    else
+        local t = TweenService:Create(MainScale, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Scale = 0})
+        t:Play()
+        t.Completed:Connect(function() if not menuVisible then MainFrame.Visible = false end end)
     end
-end)
+end
 
+-- --- RUNNER ---
 RunService.RenderStepped:Connect(function()
-    -- FOV Position & Visibility
     FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
     FOVCircle.Visible = Aim_Config.Enabled and Aim_Config.ShowFOV
 
-    -- AIMBOT LOGIC
-    if Aim_Config.Enabled then
-        if (Aim_Config.LMB_Active and HoldingLMB) or (Aim_Config.RMB_Active and HoldingRMB) then
-            local target = getClosestPlayerInFOV()
-            if target and target.Character and target.Character:FindFirstChild("Head") then
-                local speed = (Aim_Config.LMB_Active and HoldingLMB) and Aim_Config.Instant or Aim_Config.Smooth
-                local targetPos = CFrame.new(Camera.CFrame.Position, target.Character.Head.Position)
-                Camera.CFrame = Camera.CFrame:Lerp(targetPos, speed)
-            end
+    if Aim_Config.Enabled and ((Aim_Config.LMB_Active and HoldingLMB) or (Aim_Config.RMB_Active and HoldingRMB)) then
+        local target = getClosestPlayerInFOV()
+        if target and target.Character and target.Character:FindFirstChild("Head") then
+            local speed = (Aim_Config.LMB_Active and HoldingLMB) and Aim_Config.Instant or Aim_Config.Smooth
+            Camera.CFrame = Camera.CFrame:Lerp(CFrame.new(Camera.CFrame.Position, target.Character.Head.Position), speed)
         end
     end
 
-    -- FLY LOGIC
     if Flying and Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
         local hrp = Player.Character.HumanoidRootPart
         if hrp:FindFirstChild("FlyV") then
@@ -278,67 +264,60 @@ RunService.RenderStepped:Connect(function()
         end
     end
 
-    -- ESP LOGIC (Integrated from your original)
     if ESP_Config.Enabled then
         for _, p in pairs(Players:GetPlayers()) do
             if p ~= Player then
                 if not ESP_Objects[p] then createESP(p) end
-                local obj = ESP_Objects[p]
-                local char = p.Character
+                local obj, char = ESP_Objects[p], p.Character
                 if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChildOfClass("Humanoid") and char:FindFirstChildOfClass("Humanoid").Health > 0 then
-                    local root = char.HumanoidRootPart
-                    local pos, onScreen = Camera:WorldToViewportPoint(root.Position)
+                    local pos, onScreen = Camera:WorldToViewportPoint(char.HumanoidRootPart.Position)
                     if onScreen then
-                        local visible = isVisible(char:FindFirstChild("Head"))
-                        local color = (ESP_Config.VisCheck and not visible) and HIDDEN_COLOR or VISIBLE_COLOR
-                        
+                        local color = (ESP_Config.VisCheck and not isVisible(char:FindFirstChild("Head"))) and HIDDEN_COLOR or VISIBLE_COLOR
                         if ESP_Config.Boxes then
-                            local scale = 1 / (pos.Z * math.tan(math.rad(Camera.FieldOfView * 0.5)) * 2) * 1000
-                            obj.Box.Size = Vector2.new(3 * scale, 4.5 * scale); obj.Box.Position = Vector2.new(pos.X - (3 * scale)/2, pos.Y - (4.5 * scale)/2)
+                            local s = 1 / (pos.Z * math.tan(math.rad(Camera.FieldOfView * 0.5)) * 2) * 1000
+                            obj.Box.Size = Vector2.new(3 * s, 4.5 * s); obj.Box.Position = Vector2.new(pos.X - (3*s)/2, pos.Y - (4.5*s)/2)
                             obj.Box.Color = color; obj.Box.Visible = true
                         else obj.Box.Visible = false end
-                        
                         obj.Name.Visible = ESP_Config.Names
                         if ESP_Config.Names then obj.Name.Position = Vector2.new(pos.X, pos.Y - 40); obj.Name.Color = color end
-                        
                         obj.Health.Visible = ESP_Config.Health
-                        if ESP_Config.Health then 
-                            local hum = char:FindFirstChildOfClass("Humanoid")
-                            obj.Health.Text = math.floor(hum.Health) .. "%"; 
-                            obj.Health.Position = Vector2.new(pos.X, pos.Y - 25); 
-                            obj.Health.Color = Color3.fromHSV(hum.Health/300, 1, 1) 
-                        end
-                        
-                        if ESP_Config.Glow then
-                            local g = char:FindFirstChild("SakurasiGlow") or Instance.new("Highlight", char); g.Name = "SakurasiGlow"; g.OutlineColor = color; g.FillColor = color; g.FillTransparency = 0.5
+                        if ESP_Config.Health then obj.Health.Text = math.floor(char.Humanoid.Health) .. "%"; obj.Health.Position = Vector2.new(pos.X, pos.Y - 25); obj.Health.Color = Color3.fromHSV(char.Humanoid.Health/300, 1, 1) end
+                        if ESP_Config.Glow then local g = char:FindFirstChild("SakurasiGlow") or Instance.new("Highlight", char); g.Name = "SakurasiGlow"; g.OutlineColor = color; g.FillColor = color; g.FillTransparency = 0.5
                         elseif char:FindFirstChild("SakurasiGlow") then char.SakurasiGlow:Destroy() end
                     else obj.Box.Visible = false; obj.Name.Visible = false; obj.Health.Visible = false end
-                else obj.Box.Visible = false; obj.Name.Visible = false; obj.Health.Visible = false end
+                else if obj then obj.Box.Visible = false; obj.Name.Visible = false; obj.Health.Visible = false end end
             end
         end
     end
 end)
 
--- --- INPUT HANDLING ---
+RunService.Stepped:Connect(function()
+    if Noclip and Player.Character then for _, v in pairs(Player.Character:GetDescendants()) do if v:IsA("BasePart") then v.CanCollide = false end end end
+    if Player.Character and Player.Character:FindFirstChild("Humanoid") then Player.Character.Humanoid.WalkSpeed = WalkSpeed; Player.Character.Humanoid.JumpPower = JumpPower end
+    if IsSpinning and Player.Character:FindFirstChild("HumanoidRootPart") then Player.Character.HumanoidRootPart.CFrame *= CFrame.Angles(0, math.rad(SpinSpeed/60), 0) end
+    if IsS3xing and Player.Character:FindFirstChild("HumanoidRootPart") then
+        local t, d = nil, math.huge
+        for _, p in pairs(Players:GetPlayers()) do if p ~= Player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then local dist = (Player.Character.HumanoidRootPart.Position - p.Character.HumanoidRootPart.Position).Magnitude if dist < d then t, d = p, dist end end end
+        if t then Player.Character.HumanoidRootPart.CFrame = t.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, 1 + math.sin(tick()*25)*1.5) end
+    end
+end)
+
 UIS.InputBegan:Connect(function(i, gpe)
     if i.UserInputType == Enum.UserInputType.MouseButton1 then HoldingLMB = true end
     if i.UserInputType == Enum.UserInputType.MouseButton2 then HoldingRMB = true end
     if gpe or IsBinding then return end
-    
-    local char = Player.Character
-    if i.KeyCode == MenuKey then 
-        MainFrame.Visible = not MainFrame.Visible
-        MainScale.Scale = MainFrame.Visible and 1 or 0
-    elseif i.KeyCode == FlyKey and char and char:FindFirstChild("HumanoidRootPart") then
+    if i.KeyCode == MenuKey then ToggleMenu()
+    elseif i.KeyCode == FlyKey and Player.Character:FindFirstChild("HumanoidRootPart") then
         Flying = not Flying
+        local hrp = Player.Character.HumanoidRootPart
         if Flying then
-            local bv = Instance.new("BodyVelocity", char.HumanoidRootPart); bv.Name = "FlyV"; bv.MaxForce = Vector3.new(1e6,1e6,1e6)
-            local bg = Instance.new("BodyGyro", char.HumanoidRootPart); bg.Name = "FlyG"; bg.MaxTorque = Vector3.new(1e6,1e6,1e6)
-            char.Humanoid.PlatformStand = true
+            Instance.new("BodyVelocity", hrp).Name = "FlyV"; hrp.FlyV.MaxForce = Vector3.new(1e6,1e6,1e6)
+            Instance.new("BodyGyro", hrp).Name = "FlyG"; hrp.FlyG.MaxTorque = Vector3.new(1e6,1e6,1e6)
+            Player.Character.Humanoid.PlatformStand = true
         else
-            char.Humanoid.PlatformStand = false
-            if char.HumanoidRootPart:FindFirstChild("FlyV") then char.HumanoidRootPart.FlyV:Destroy() end
-            if char.HumanoidRootPart:FindFirstChild("FlyG") then char.HumanoidRootPart.FlyG:Destroy() end
+            Player.Character.Humanoid.PlatformStand = false
+            if hrp:FindFirstChild("FlyV") then hrp.FlyV:Destroy() end
+            if hrp:FindFirstChild("FlyG") then hrp.FlyG:Destroy() end
         end
         ShowNotify("Fly", Flying and "ON" or "OFF", Flying)
     elseif i.KeyCode == NoclipKey then Noclip = not Noclip; ShowNotify("Noclip", Noclip and "ON" or "OFF", Noclip)
@@ -353,4 +332,4 @@ UIS.InputEnded:Connect(function(i)
 end)
 
 Players.PlayerRemoving:Connect(removeESP)
-ShowNotify("Nexus Loaded", "Sakurasi Edition", true)
+ShowNotify("Nexus Loaded", "V4 Sakurasi", true)
