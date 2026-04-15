@@ -332,4 +332,4 @@ UIS.InputEnded:Connect(function(i)
 end)
 
 Players.PlayerRemoving:Connect(removeESP)
-ShowNotify("Nexus ", "Loaded", true)
+ShowNotify("Nexus", "Loaded", true)
