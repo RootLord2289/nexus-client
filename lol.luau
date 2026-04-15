@@ -1,5 +1,6 @@
-local UIS = game:GetService("UserInputService")
+-- Вставь этот код вместо своего или обнови соответствующие части
 local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Player = Players.LocalPlayer
@@ -14,26 +15,32 @@ local FlyKey, NoclipKey, MenuKey = Enum.KeyCode.J, Enum.KeyCode.N, Enum.KeyCode.
 local S3xKey, SpinKey = Enum.KeyCode.H, Enum.KeyCode.V
 local IsBinding = false
 
--- --- НОВАЯ ДЕТАЛЬНАЯ КОНФИГУРАЦИЯ ESP ---
-local ESP_Config = {
-    Enabled = false,
-    Boxes = false,
-    Names = false,
-    Health = false,
-    Glow = false,
-    VisCheck = false
-}
+-- --- CONFIGS ---
+local ESP_Config = { Enabled = false, Boxes = false, Names = false, Health = false, Glow = false, VisCheck = false }
+local Aim_Config = { Enabled = false, ShowFOV = false, LMB_Active = false, RMB_Active = false, Radius = 150, Smooth = 0.2, Instant = 1.0 }
 
 local ESP_Objects = {}
 local VISIBLE_COLOR = Color3.fromRGB(0, 255, 0)
 local HIDDEN_COLOR = Color3.fromRGB(255, 0, 0)
+
+-- FOV Drawing
+local FOVCircle = Drawing.new("Circle")
+FOVCircle.Thickness = 1
+FOVCircle.NumSides = 100
+FOVCircle.Radius = Aim_Config.Radius
+FOVCircle.Filled = false
+FOVCircle.Visible = false
+FOVCircle.Color = Color3.fromRGB(255, 255, 255)
+FOVCircle.Transparency = 0.5
+
+local HoldingLMB, HoldingRMB = false, false
 
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "Sakurasi_V4"
 ScreenGui.Parent = game.CoreGui
 ScreenGui.ResetOnSpawn = false
 
--- --- NOTIFY SYSTEM (Твой оригинал) ---
+-- --- NOTIFY SYSTEM ---
 local NotifyFrame = Instance.new("Frame", ScreenGui)
 NotifyFrame.Size = UDim2.new(0, 240, 0, 45)
 NotifyFrame.Position = UDim2.new(0.5, 0, 0, -100)
@@ -72,7 +79,31 @@ local function ShowNotify(feature, status, isEnabled)
     end)
 end
 
--- --- ESP LOGIC (Обновленная под тумблеры) ---
+-- --- AIMBOT HELPERS ---
+local function getClosestPlayerInFOV()
+    local closestPlayer = nil
+    local shortestDistance = Aim_Config.Radius
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= Player and player.Character then
+            local head = player.Character:FindFirstChild("Head")
+            local hum = player.Character:FindFirstChildOfClass("Humanoid")
+            if head and hum and hum.Health > 0 then
+                local pos, onScreen = Camera:WorldToViewportPoint(head.Position)
+                if onScreen then
+                    local mousePos = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+                    local distance = (Vector2.new(pos.X, pos.Y) - mousePos).Magnitude
+                    if distance < shortestDistance then
+                        closestPlayer = player
+                        shortestDistance = distance
+                    end
+                end
+            end
+        end
+    end
+    return closestPlayer
+end
+
+-- --- ESP HELPERS ---
 local function isVisible(targetPart)
     if not targetPart then return false end
     local char = Player.Character
@@ -104,9 +135,9 @@ local function removeESP(p)
     if p.Character and p.Character:FindFirstChild("SakurasiGlow") then p.Character.SakurasiGlow:Destroy() end
 end
 
--- --- MAIN MENU (Оригинальный стиль) ---
+-- --- MENU UI ---
 local MainFrame = Instance.new("Frame", ScreenGui)
-MainFrame.Size = UDim2.new(0, 450, 0, 300)
+MainFrame.Size = UDim2.new(0, 450, 0, 320)
 MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
 MainFrame.AnchorPoint = Vector2.new(0.5, 0.5)
 MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
@@ -124,16 +155,16 @@ ContentFrame.Size = UDim2.new(1, -130, 1, -45)
 ContentFrame.Position = UDim2.new(0, 125, 0, 40)
 ContentFrame.BackgroundTransparency = 1
 
-local Pages = { Movement = Instance.new("Frame", ContentFrame), Visuals = Instance.new("Frame", ContentFrame), Keybinds = Instance.new("Frame", ContentFrame), Fun = Instance.new("Frame", ContentFrame) }
+local Pages = { Movement = Instance.new("Frame", ContentFrame), Visuals = Instance.new("Frame", ContentFrame), Combat = Instance.new("Frame", ContentFrame), Keybinds = Instance.new("Frame", ContentFrame), Fun = Instance.new("Frame", ContentFrame) }
 for name, frame in pairs(Pages) do
     frame.Size = UDim2.new(1, 0, 1, 0); frame.BackgroundTransparency = 1; frame.Visible = (name == "Movement")
 end
 
 local function CreateTab(name, pos)
     local btn = Instance.new("TextButton", Sidebar)
-    btn.Size = UDim2.new(0.9, 0, 0, 40); btn.Position = UDim2.new(0.05, 0, 0, pos); btn.Text = name
+    btn.Size = UDim2.new(0.9, 0, 0, 35); btn.Position = UDim2.new(0.05, 0, 0, pos); btn.Text = name
     btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60); btn.BackgroundTransparency = (name == "Movement") and 0 or 1
-    btn.TextColor3 = Color3.new(1, 1, 1); btn.Font = Enum.Font.GothamBold; btn.TextSize = 14; btn.Name = name
+    btn.TextColor3 = Color3.new(1, 1, 1); btn.Font = Enum.Font.GothamBold; btn.TextSize = 13; btn.Name = name
     Instance.new("UICorner", btn)
     btn.MouseButton1Click:Connect(function()
         for pName, p in pairs(Pages) do
@@ -143,14 +174,14 @@ local function CreateTab(name, pos)
     end)
 end
 
-CreateTab("Movement", 15); CreateTab("Visuals", 65); CreateTab("Keybinds", 115); CreateTab("Fun", 165)
+CreateTab("Movement", 15); CreateTab("Visuals", 55); CreateTab("Combat", 95); CreateTab("Keybinds", 135); CreateTab("Fun", 175)
 
 local function CreateToggle(text, pos, default, parent, callback)
     local btn = Instance.new("TextButton", parent)
-    btn.Size = UDim2.new(0, 210, 0, 32); btn.Position = pos
+    btn.Size = UDim2.new(0, 210, 0, 30); btn.Position = pos
     btn.BackgroundColor3 = default and Color3.fromRGB(46, 204, 113) or Color3.fromRGB(50, 50, 50)
     btn.Text = text .. ": " .. (default and "ON" or "OFF")
-    btn.TextColor3 = Color3.new(1, 1, 1); btn.Font = Enum.Font.GothamBold; btn.TextSize = 12
+    btn.TextColor3 = Color3.new(1, 1, 1); btn.Font = Enum.Font.GothamBold; btn.TextSize = 11
     Instance.new("UICorner", btn)
     local state = default
     btn.MouseButton1Click:Connect(function()
@@ -160,48 +191,52 @@ local function CreateToggle(text, pos, default, parent, callback)
     return btn
 end
 
--- --- ВСЕ НАСТРОЙКИ (Как ты просил) ---
 local function CreateInput(text, pos, default, parent, callback)
-    local Label = Instance.new("TextLabel", parent); Label.Text = text; Label.Size = UDim2.new(0, 100, 0, 35); Label.Position = pos; Label.TextColor3 = Color3.new(1, 1, 1); Label.BackgroundTransparency = 1; Label.Font = Enum.Font.GothamBold; Label.TextSize = 12; Label.TextXAlignment = Enum.TextXAlignment.Left
-    local Input = Instance.new("TextBox", parent); Input.Size = UDim2.new(0, 100, 0, 35); Input.Position = pos + UDim2.new(0, 110, 0, 0); Input.Text = tostring(default); Input.BackgroundColor3 = Color3.fromRGB(50, 50, 50); Input.TextColor3 = Color3.new(1, 1, 1); Input.Font = Enum.Font.GothamBold; Input.TextSize = 16; Input.ClearTextOnFocus = false; Instance.new("UICorner", Input)
+    local Label = Instance.new("TextLabel", parent); Label.Text = text; Label.Size = UDim2.new(0, 100, 0, 30); Label.Position = pos; Label.TextColor3 = Color3.new(1, 1, 1); Label.BackgroundTransparency = 1; Label.Font = Enum.Font.GothamBold; Label.TextSize = 11; Label.TextXAlignment = Enum.TextXAlignment.Left
+    local Input = Instance.new("TextBox", parent); Input.Size = UDim2.new(0, 100, 0, 30); Input.Position = pos + UDim2.new(0, 110, 0, 0); Input.Text = tostring(default); Input.BackgroundColor3 = Color3.fromRGB(50, 50, 50); Input.TextColor3 = Color3.new(1, 1, 1); Input.Font = Enum.Font.GothamBold; Input.TextSize = 14; Input.ClearTextOnFocus = false; Instance.new("UICorner", Input)
     Input.FocusLost:Connect(function() local num = tonumber(Input.Text) if num then callback(num) end end)
 end
 
 local function CreateBind(text, pos, defaultKey, parent, callback)
-    local Label = Instance.new("TextLabel", parent); Label.Text = text; Label.Size = UDim2.new(0, 100, 0, 35); Label.Position = pos; Label.TextColor3 = Color3.new(1, 1, 1); Label.BackgroundTransparency = 1; Label.Font = Enum.Font.GothamBold; Label.TextSize = 12; Label.TextXAlignment = Enum.TextXAlignment.Left
-    local BindBtn = Instance.new("TextButton", parent); BindBtn.Size = UDim2.new(0, 100, 0, 35); BindBtn.Position = pos + UDim2.new(0, 110, 0, 0); BindBtn.Text = defaultKey.Name; BindBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50); BindBtn.TextColor3 = Color3.new(1, 1, 1); BindBtn.Font = Enum.Font.GothamBold; BindBtn.TextSize = 14; Instance.new("UICorner", BindBtn)
+    local Label = Instance.new("TextLabel", parent); Label.Text = text; Label.Size = UDim2.new(0, 100, 0, 30); Label.Position = pos; Label.TextColor3 = Color3.new(1, 1, 1); Label.BackgroundTransparency = 1; Label.Font = Enum.Font.GothamBold; Label.TextSize = 11; Label.TextXAlignment = Enum.TextXAlignment.Left
+    local BindBtn = Instance.new("TextButton", parent); BindBtn.Size = UDim2.new(0, 100, 0, 30); BindBtn.Position = pos + UDim2.new(0, 110, 0, 0); BindBtn.Text = defaultKey.Name; BindBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50); BindBtn.TextColor3 = Color3.new(1, 1, 1); BindBtn.Font = Enum.Font.GothamBold; BindBtn.TextSize = 12; Instance.new("UICorner", BindBtn)
     BindBtn.MouseButton1Click:Connect(function() if IsBinding then return end IsBinding = true; BindBtn.Text = "..."; local conn; conn = UIS.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.Keyboard then BindBtn.Text = i.KeyCode.Name; callback(i.KeyCode); conn:Disconnect(); task.wait(0.1); IsBinding = false end end) end)
 end
 
+-- --- PAGE CONTENT ---
 -- Movement
 CreateInput("SPEED", UDim2.new(0, 10, 0, 10), WalkSpeed, Pages.Movement, function(v) WalkSpeed = v end)
-CreateInput("SPIN SPEED", UDim2.new(0, 10, 0, 50), SpinSpeed, Pages.Movement, function(v) SpinSpeed = v end)
-CreateInput("JUMP", UDim2.new(0, 10, 0, 90), JumpPower, Pages.Movement, function(v) JumpPower = v end)
-CreateInput("FLY SPD", UDim2.new(0, 10, 0, 130), FlySpeed, Pages.Movement, function(v) FlySpeed = v end)
+CreateInput("SPIN SPEED", UDim2.new(0, 10, 0, 45), SpinSpeed, Pages.Movement, function(v) SpinSpeed = v end)
+CreateInput("JUMP", UDim2.new(0, 10, 0, 80), JumpPower, Pages.Movement, function(v) JumpPower = v end)
+CreateInput("FLY SPD", UDim2.new(0, 10, 0, 115), FlySpeed, Pages.Movement, function(v) FlySpeed = v end)
 
--- Visuals (Детально)
-CreateToggle("ESP MASTER", UDim2.new(0, 10, 0, 10), false, Pages.Visuals, function(s) 
-    ESP_Config.Enabled = s 
-    if not s then for _, p in pairs(Players:GetPlayers()) do removeESP(p) end end
-end)
-CreateToggle("Show Boxes", UDim2.new(0, 10, 0, 47), false, Pages.Visuals, function(s) ESP_Config.Boxes = s end)
-CreateToggle("Show Names", UDim2.new(0, 10, 0, 84), false, Pages.Visuals, function(s) ESP_Config.Names = s end)
-CreateToggle("Show Health", UDim2.new(0, 10, 0, 121), false, Pages.Visuals, function(s) ESP_Config.Health = s end)
-CreateToggle("Glow (Highlight)", UDim2.new(0, 10, 0, 158), false, Pages.Visuals, function(s) ESP_Config.Glow = s end)
-CreateToggle("Wall Check", UDim2.new(0, 10, 0, 195), false, Pages.Visuals, function(s) ESP_Config.VisCheck = s end)
+-- Visuals
+CreateToggle("ESP MASTER", UDim2.new(0, 10, 0, 10), false, Pages.Visuals, function(s) ESP_Config.Enabled = s if not s then for _, p in pairs(Players:GetPlayers()) do removeESP(p) end end end)
+CreateToggle("Show Boxes", UDim2.new(0, 10, 0, 45), false, Pages.Visuals, function(s) ESP_Config.Boxes = s end)
+CreateToggle("Show Names", UDim2.new(0, 10, 0, 80), false, Pages.Visuals, function(s) ESP_Config.Names = s end)
+CreateToggle("Show Health", UDim2.new(0, 10, 0, 115), false, Pages.Visuals, function(s) ESP_Config.Health = s end)
+CreateToggle("Glow (Highlight)", UDim2.new(0, 10, 0, 150), false, Pages.Visuals, function(s) ESP_Config.Glow = s end)
+CreateToggle("Wall Check", UDim2.new(0, 10, 0, 185), false, Pages.Visuals, function(s) ESP_Config.VisCheck = s end)
+
+-- Combat (Aimbot)
+CreateToggle("AIMBOT MASTER", UDim2.new(0, 10, 0, 10), false, Pages.Combat, function(s) Aim_Config.Enabled = s end)
+CreateToggle("Show FOV Circle", UDim2.new(0, 10, 0, 45), false, Pages.Combat, function(s) Aim_Config.ShowFOV = s end)
+CreateToggle("LMB (Instant)", UDim2.new(0, 10, 0, 80), false, Pages.Combat, function(s) Aim_Config.LMB_Active = s end)
+CreateToggle("RMB (Smooth)", UDim2.new(0, 10, 0, 115), false, Pages.Combat, function(s) Aim_Config.RMB_Active = s end)
+CreateInput("FOV Radius", UDim2.new(0, 10, 0, 150), Aim_Config.Radius, Pages.Combat, function(v) Aim_Config.Radius = v FOVCircle.Radius = v end)
 
 -- Keybinds
 CreateBind("FLY KEY", UDim2.new(0, 10, 0, 10), FlyKey, Pages.Keybinds, function(k) FlyKey = k end)
-CreateBind("NOCLIP", UDim2.new(0, 10, 0, 50), NoclipKey, Pages.Keybinds, function(k) NoclipKey = k end)
-CreateBind("S3X KEY", UDim2.new(0, 10, 0, 90), S3xKey, Pages.Keybinds, function(k) S3xKey = k end)
-CreateBind("3313 KEY", UDim2.new(0, 10, 0, 130), SpinKey, Pages.Keybinds, function(k) SpinKey = k end)
-CreateBind("MENU", UDim2.new(0, 10, 0, 170), MenuKey, Pages.Keybinds, function(k) MenuKey = k end)
+CreateBind("NOCLIP", UDim2.new(0, 10, 0, 45), NoclipKey, Pages.Keybinds, function(k) NoclipKey = k end)
+CreateBind("S3X KEY", UDim2.new(0, 10, 0, 80), S3xKey, Pages.Keybinds, function(k) S3xKey = k end)
+CreateBind("3313 KEY", UDim2.new(0, 10, 0, 115), SpinKey, Pages.Keybinds, function(k) SpinKey = k end)
+CreateBind("MENU", UDim2.new(0, 10, 0, 150), MenuKey, Pages.Keybinds, function(k) MenuKey = k end)
 
 -- Fun
 CreateToggle("S3X", UDim2.new(0, 10, 0, 10), false, Pages.Fun, function(s) S3xEnabled = s if not s then IsS3xing = false end end)
-CreateToggle("3313 SPIN", UDim2.new(0, 10, 0, 55), false, Pages.Fun, function(s) Spin3313Enabled = s if not s then IsSpinning = false end end)
+CreateToggle("3313 SPIN", UDim2.new(0, 10, 0, 45), false, Pages.Fun, function(s) Spin3313Enabled = s if not s then IsSpinning = false end end)
 
--- --- ЛОГИКА (Оригинал + ESP) ---
+-- --- MAIN LOGIC LOOP ---
 RunService.Stepped:Connect(function()
     if Noclip and Player.Character then for _, v in pairs(Player.Character:GetDescendants()) do if v:IsA("BasePart") then v.CanCollide = false end end end
     if Player.Character and Player.Character:FindFirstChild("Humanoid") then Player.Character.Humanoid.WalkSpeed = WalkSpeed; Player.Character.Humanoid.JumpPower = JumpPower end
@@ -214,7 +249,23 @@ RunService.Stepped:Connect(function()
 end)
 
 RunService.RenderStepped:Connect(function()
-    -- FLY
+    -- FOV Position & Visibility
+    FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+    FOVCircle.Visible = Aim_Config.Enabled and Aim_Config.ShowFOV
+
+    -- AIMBOT LOGIC
+    if Aim_Config.Enabled then
+        if (Aim_Config.LMB_Active and HoldingLMB) or (Aim_Config.RMB_Active and HoldingRMB) then
+            local target = getClosestPlayerInFOV()
+            if target and target.Character and target.Character:FindFirstChild("Head") then
+                local speed = (Aim_Config.LMB_Active and HoldingLMB) and Aim_Config.Instant or Aim_Config.Smooth
+                local targetPos = CFrame.new(Camera.CFrame.Position, target.Character.Head.Position)
+                Camera.CFrame = Camera.CFrame:Lerp(targetPos, speed)
+            end
+        end
+    end
+
+    -- FLY LOGIC
     if Flying and Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
         local hrp = Player.Character.HumanoidRootPart
         if hrp:FindFirstChild("FlyV") then
@@ -227,7 +278,7 @@ RunService.RenderStepped:Connect(function()
         end
     end
 
-    -- ESP
+    -- ESP LOGIC (Integrated from your original)
     if ESP_Config.Enabled then
         for _, p in pairs(Players:GetPlayers()) do
             if p ~= Player then
@@ -251,7 +302,12 @@ RunService.RenderStepped:Connect(function()
                         if ESP_Config.Names then obj.Name.Position = Vector2.new(pos.X, pos.Y - 40); obj.Name.Color = color end
                         
                         obj.Health.Visible = ESP_Config.Health
-                        if ESP_Config.Health then obj.Health.Text = math.floor(char:FindFirstChildOfClass("Humanoid").Health) .. "%"; obj.Health.Position = Vector2.new(pos.X, pos.Y - 25); obj.Health.Color = Color3.fromHSV(char:FindFirstChildOfClass("Humanoid").Health/300, 1, 1) end
+                        if ESP_Config.Health then 
+                            local hum = char:FindFirstChildOfClass("Humanoid")
+                            obj.Health.Text = math.floor(hum.Health) .. "%"; 
+                            obj.Health.Position = Vector2.new(pos.X, pos.Y - 25); 
+                            obj.Health.Color = Color3.fromHSV(hum.Health/300, 1, 1) 
+                        end
                         
                         if ESP_Config.Glow then
                             local g = char:FindFirstChild("SakurasiGlow") or Instance.new("Highlight", char); g.Name = "SakurasiGlow"; g.OutlineColor = color; g.FillColor = color; g.FillTransparency = 0.5
@@ -263,20 +319,16 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
-Players.PlayerRemoving:Connect(removeESP)
-
--- --- МЕНЮ ТОГГЛ ---
-local menuVisible = true
-local function ToggleMenu()
-    menuVisible = not menuVisible
-    MainFrame.Visible = menuVisible
-    MainScale.Scale = menuVisible and 1 or 0
-end
-
+-- --- INPUT HANDLING ---
 UIS.InputBegan:Connect(function(i, gpe)
+    if i.UserInputType == Enum.UserInputType.MouseButton1 then HoldingLMB = true end
+    if i.UserInputType == Enum.UserInputType.MouseButton2 then HoldingRMB = true end
     if gpe or IsBinding then return end
+    
     local char = Player.Character
-    if i.KeyCode == MenuKey then ToggleMenu()
+    if i.KeyCode == MenuKey then 
+        MainFrame.Visible = not MainFrame.Visible
+        MainScale.Scale = MainFrame.Visible and 1 or 0
     elseif i.KeyCode == FlyKey and char and char:FindFirstChild("HumanoidRootPart") then
         Flying = not Flying
         if Flying then
@@ -295,4 +347,10 @@ UIS.InputBegan:Connect(function(i, gpe)
     end
 end)
 
-ShowNotify("Nexus Loaded", "", true)
+UIS.InputEnded:Connect(function(i)
+    if i.UserInputType == Enum.UserInputType.MouseButton1 then HoldingLMB = false end
+    if i.UserInputType == Enum.UserInputType.MouseButton2 then HoldingRMB = false end
+end)
+
+Players.PlayerRemoving:Connect(removeESP)
+ShowNotify("Nexus Loaded", "Sakurasi Edition", true)
