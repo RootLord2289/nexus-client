@@ -12,6 +12,7 @@ local FlySpeed, WalkSpeed, JumpPower = 50, 16, 50
 local SpinSpeed = 3313 
 local FlyKey, NoclipKey, MenuKey = Enum.KeyCode.J, Enum.KeyCode.N, Enum.KeyCode.Insert
 local S3xKey, SpinKey = Enum.KeyCode.H, Enum.KeyCode.V
+local SpamKey = Enum.KeyCode.M
 local IsBinding = false
 
 -- --- CONFIGS ---
@@ -27,6 +28,52 @@ local VISIBLE_COLOR = Color3.fromRGB(0, 255, 0)
 local HIDDEN_COLOR = Color3.fromRGB(255, 0, 0)
 
 local HoldingLMB, HoldingRMB = false, false
+
+-- --- SPAM CONFIG ---
+local ChatSpamEnabled = false
+local ChatSpamDelay = 0.7
+local ChatMessage = "RootLord frisst Kinder"
+
+local function randomString(len)
+    local chars = "abcdefghijklmnopqrstuvwxyz"
+    local str = ""
+    for i = 1, len do
+        str = str .. chars:sub(math.random(1, #chars), math.random(1, #chars))
+    end
+    return str
+end
+
+local function getBypassedMessage(msg)
+    local styles = {
+        function() return msg .. " ." end,
+        function() return msg .. " .." end,
+        function() return msg .. " ..." end,
+        function() return msg .. " " .. randomString(math.random(2,5)) end,
+        function() return msg .. " [" .. randomString(3) .. "]" end,
+        function() return msg .. " |" .. randomString(2) end,
+        function() return msg .. " <" .. randomString(3) .. ">" end,
+    }
+    return styles[math.random(1, #styles)]()
+end
+
+task.spawn(function()
+    while task.wait(ChatSpamDelay) do
+        if not ChatSpamEnabled then continue end
+        local finalMsg = getBypassedMessage(ChatMessage)
+        local tcs = game:GetService("TextChatService")
+        if tcs.ChatVersion == Enum.ChatVersion.TextChatService then
+            pcall(function()
+                tcs.TextChannels.RBXGeneral:SendAsync(finalMsg)
+            end)
+        else
+            pcall(function()
+                game:GetService("ReplicatedStorage")
+                    .DefaultChatSystemChatEvents
+                    .SayMessageRequest:FireServer(finalMsg, "All")
+            end)
+        end
+    end
+end)
 
 -- ==================== THEMES SYSTEM ====================
 local CurrentTheme = {
@@ -76,7 +123,6 @@ local function ApplyTheme(themeName)
         obj.TextColor3 = t.Txt
     end
     
-    -- Обновление Cheats List
     for _, container in pairs(ActiveLabels) do
         container.BackgroundColor3 = t.Sec
         local lbl = container:FindFirstChildOfClass("TextLabel")
@@ -330,9 +376,6 @@ LogoText.TextSize = 24
 LogoText.TextColor3 = Color3.fromRGB(255, 255, 255)
 LogoText.TextXAlignment = Enum.TextXAlignment.Center
 
-local Stroke = LogoText:FindFirstChildOfClass("UIStroke")
-if Stroke then Stroke:Destroy() end
-
 local LogoGradient = Instance.new("UIGradient", LogoText)
 LogoGradient.Rotation = 45 
 
@@ -341,7 +384,6 @@ task.spawn(function()
     while task.wait(0.05) do
         counter = counter + 0.05
         if counter > 1 then counter = 0 end
-        
         LogoGradient.Color = ColorSequence.new({
             ColorSequenceKeypoint.new(0, Color3.fromHSV(counter, 0.6, 1)),
             ColorSequenceKeypoint.new(0.5, Color3.fromHSV((counter + 0.1) % 1, 0.6, 1)),
@@ -367,7 +409,7 @@ local Pages = {
     Visuals = Instance.new("ScrollingFrame", ContentFrame),
     Combat = Instance.new("Frame", ContentFrame),
     Keybinds = Instance.new("Frame", ContentFrame),
-    Fun = Instance.new("Frame", ContentFrame),
+    Fun = Instance.new("ScrollingFrame", ContentFrame),
     Themes = Instance.new("ScrollingFrame", ContentFrame)
 }
 
@@ -377,7 +419,7 @@ for name, frame in pairs(Pages) do
     frame.Visible = (name == "Movement")
     if frame:IsA("ScrollingFrame") then
         frame.ScrollBarThickness = 2
-        frame.CanvasSize = UDim2.new(0, 0, 0, name == "Themes" and 300 or 450)
+        frame.CanvasSize = UDim2.new(0, 0, 0, name == "Themes" and 300 or (name == "Fun" and 350 or 450))
         frame.ScrollBarImageColor3 = Color3.fromRGB(80, 80, 80)
     end
 end
@@ -416,7 +458,7 @@ CreateTab("Keybinds", 185)
 CreateTab("Fun",      225)
 CreateTab("Themes",   265)
 
--- ==================== UPDATED UI CREATORS ====================
+-- ==================== UI CREATORS ====================
 local function CreateToggle(text, pos, default, parent, callback)
     local btn = Instance.new("TextButton", parent)
     btn.Size = UDim2.new(0, 210, 0, 30)
@@ -517,17 +559,19 @@ local function CreateBind(text, pos, defaultKey, parent, callback)
 end
 
 -- ==================== CONTENT ====================
+
+-- Movement
 CreateInput("SPEED", UDim2.new(0, 10, 0, 10), WalkSpeed, Pages.Movement, function(v) WalkSpeed = v end)
 CreateInput("SPIN SPEED", UDim2.new(0, 10, 0, 45), SpinSpeed, Pages.Movement, function(v) SpinSpeed = v end)
 CreateInput("JUMP", UDim2.new(0, 10, 0, 80), JumpPower, Pages.Movement, function(v) JumpPower = v end)
 CreateInput("FLY SPD", UDim2.new(0, 10, 0, 115), FlySpeed, Pages.Movement, function(v) FlySpeed = v end)
 
+-- Visuals
 CreateToggle("ESP MASTER", UDim2.new(0, 10, 0, 10), false, Pages.Visuals, function(s) 
     ESP_Config.Enabled = s 
     if not s then for _, p in pairs(Players:GetPlayers()) do removeESP(p) end end 
     UpdateCheatList("ESP", s) 
 end)
-
 CreateToggle("Show Boxes", UDim2.new(0, 10, 0, 45), false, Pages.Visuals, function(s) ESP_Config.Boxes = s end)
 CreateToggle("Show Names", UDim2.new(0, 10, 0, 80), false, Pages.Visuals, function(s) ESP_Config.Names = s end)
 CreateToggle("Show Health", UDim2.new(0, 10, 0, 115), false, Pages.Visuals, function(s) ESP_Config.Health = s end)
@@ -557,6 +601,7 @@ CreateToggle("Show List", UDim2.new(0, 10, 0, 245), false, Pages.Visuals, functi
         UpdateCheatList("Noclip", Noclip)
         UpdateCheatList("S3X", IsS3xing)
         UpdateCheatList("Spin", IsSpinning)
+        UpdateCheatList("Spam", ChatSpamEnabled)
     end
 end)
 
@@ -582,6 +627,7 @@ PosBtn.MouseButton1Click:Connect(function()
 end)
 UpdateListPos()
 
+-- Combat
 CreateToggle("AIMBOT MASTER", UDim2.new(0, 10, 0, 10), false, Pages.Combat, function(s) 
     Aim_Config.Enabled = s 
     UpdateCheatList("Aimbot", s) 
@@ -594,12 +640,15 @@ CreateInput("FOV Radius", UDim2.new(0, 10, 0, 150), Aim_Config.Radius, Pages.Com
     FOVCircle.Radius = v 
 end)
 
+-- Keybinds
 CreateBind("FLY KEY", UDim2.new(0, 10, 0, 10), FlyKey, Pages.Keybinds, function(k) FlyKey = k end)
 CreateBind("NOCLIP", UDim2.new(0, 10, 0, 45), NoclipKey, Pages.Keybinds, function(k) NoclipKey = k end)
 CreateBind("S3X KEY", UDim2.new(0, 10, 0, 80), S3xKey, Pages.Keybinds, function(k) S3xKey = k end)
 CreateBind("3313 KEY", UDim2.new(0, 10, 0, 115), SpinKey, Pages.Keybinds, function(k) SpinKey = k end)
+CreateBind("SPAM KEY", UDim2.new(0, 10, 0, 185), SpamKey, Pages.Keybinds, function(k) SpamKey = k end)
 CreateBind("MENU", UDim2.new(0, 10, 0, 150), MenuKey, Pages.Keybinds, function(k) MenuKey = k end)
 
+-- Fun
 CreateToggle("S3X", UDim2.new(0, 10, 0, 10), false, Pages.Fun, function(s) 
     S3xEnabled = s 
     if not s then IsS3xing = false end 
@@ -607,6 +656,56 @@ end)
 CreateToggle("3313 SPIN", UDim2.new(0, 10, 0, 45), false, Pages.Fun, function(s) 
     Spin3313Enabled = s 
     if not s then IsSpinning = false end 
+end)
+
+-- Spam divider
+local SpamDiv = Instance.new("TextLabel", Pages.Fun)
+SpamDiv.Text = "- - Chat Spam - -"
+SpamDiv.Size = UDim2.new(0, 210, 0, 20)
+SpamDiv.Position = UDim2.new(0, 10, 0, 85)
+SpamDiv.BackgroundTransparency = 1
+SpamDiv.TextColor3 = Color3.fromRGB(150, 150, 150)
+SpamDiv.Font = Enum.Font.GothamBold
+SpamDiv.TextSize = 10
+table.insert(UI_Elements.Texts, SpamDiv)
+
+CreateToggle("SPAM", UDim2.new(0, 10, 0, 110), false, Pages.Fun, function(s)
+    ChatSpamEnabled = s
+    UpdateCheatList("Spam", s)
+    ShowNotify("Spam", s and "ON" or "OFF", s)
+end)
+
+-- Message text input
+local MsgLabel = Instance.new("TextLabel", Pages.Fun)
+MsgLabel.Text = "Message:"
+MsgLabel.Size = UDim2.new(0, 80, 0, 25)
+MsgLabel.Position = UDim2.new(0, 10, 0, 148)
+MsgLabel.BackgroundTransparency = 1
+MsgLabel.TextColor3 = CurrentTheme.Text
+MsgLabel.Font = Enum.Font.GothamBold
+MsgLabel.TextSize = 11
+MsgLabel.TextXAlignment = Enum.TextXAlignment.Left
+table.insert(UI_Elements.Texts, MsgLabel)
+
+local MsgInput = Instance.new("TextBox", Pages.Fun)
+MsgInput.Size = UDim2.new(0, 130, 0, 30)
+MsgInput.Position = UDim2.new(0, 90, 0, 148)
+MsgInput.Text = ChatMessage
+MsgInput.BackgroundColor3 = CurrentTheme.Secondary
+MsgInput.TextColor3 = CurrentTheme.Text
+MsgInput.Font = Enum.Font.Gotham
+MsgInput.TextSize = 11
+MsgInput.ClearTextOnFocus = false
+Instance.new("UICorner", MsgInput)
+table.insert(UI_Elements.Secondary, MsgInput)
+table.insert(UI_Elements.Texts, MsgInput)
+MsgInput.FocusLost:Connect(function()
+    if MsgInput.Text ~= "" then ChatMessage = MsgInput.Text end
+end)
+
+-- Delay input
+CreateInput("Delay(s)", UDim2.new(0, 10, 0, 183), ChatSpamDelay, Pages.Fun, function(v)
+    ChatSpamDelay = math.max(0.3, v)
 end)
 
 -- ==================== THEMES PAGE ====================
@@ -623,14 +722,13 @@ for name, t in pairs(Themes) do
     tBtn.ClipsDescendants = true
     Instance.new("UICorner", tBtn)
 
-    -- Градиент из 3 цветов темы: Bg -> Acc -> Sec
     local gradient = Instance.new("UIGradient", tBtn)
     gradient.Color = ColorSequence.new({
         ColorSequenceKeypoint.new(0,   t.Bg),
         ColorSequenceKeypoint.new(0.5, t.Acc),
         ColorSequenceKeypoint.new(1,   t.Sec),
     })
-    gradient.Rotation = 90  -- вертикальный, можно 0 для горизонтального
+    gradient.Rotation = 90
 
     table.insert(UI_Elements.Secondary, tBtn)
     table.insert(UI_Elements.Texts, tBtn)
@@ -805,6 +903,10 @@ UIS.InputBegan:Connect(function(i, gpe)
             ShowNotify("Fly", Flying and "ON" or "OFF", Flying)
             UpdateCheatList("Fly", Flying)
         end
+    elseif i.KeyCode == SpamKey then
+        ChatSpamEnabled = not ChatSpamEnabled
+        ShowNotify("Spam", ChatSpamEnabled and "ON" or "OFF", ChatSpamEnabled)
+        UpdateCheatList("Spam", ChatSpamEnabled)
     elseif i.KeyCode == NoclipKey then 
         Noclip = not Noclip 
         ShowNotify("Noclip", Noclip and "ON" or "OFF", Noclip)
