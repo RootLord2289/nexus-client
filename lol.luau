@@ -26,7 +26,7 @@ local HoldingLMB, HoldingRMB = false, false
 -- --- SPAM CONFIG ---
 local ChatSpamEnabled = false
 local ChatSpamDelay = 0.7
-local ChatMessage = "Nexus is Busting"
+local ChatMessage = "Nexus is Boosting"
 local function randomString(len)
     local chars = "abcdefghijklmnopqrstuvwxyz"
     local str = ""
