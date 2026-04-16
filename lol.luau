@@ -32,7 +32,7 @@ local HoldingLMB, HoldingRMB = false, false
 -- --- SPAM CONFIG ---
 local ChatSpamEnabled = false
 local ChatSpamDelay = 0.7
-local ChatMessage = "RootLord frisst Kinder"
+local ChatMessage = "Nexus Busted"
 
 local function randomString(len)
     local chars = "abcdefghijklmnopqrstuvwxyz"
