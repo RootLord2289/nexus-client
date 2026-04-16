@@ -103,7 +103,7 @@ FOVCircle.Transparency = 0.5
 
 -- ==================== SCREEN GUI ====================
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "Sakurasi_V4"
+ScreenGui.Name = "Nexus"
 ScreenGui.Parent = game.CoreGui
 ScreenGui.ResetOnSpawn = false
 
@@ -315,6 +315,46 @@ Sidebar.Size = UDim2.new(0, 120, 1, 0)
 Sidebar.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 Instance.new("UICorner", Sidebar).CornerRadius = UDim.new(0, 12)
 
+-- ==================== LOGO ====================
+local LogoFrame = Instance.new("Frame", Sidebar)
+LogoFrame.Size = UDim2.new(1, 0, 0, 50)
+LogoFrame.Position = UDim2.new(0, 0, 0, 0)
+LogoFrame.BackgroundTransparency = 1
+
+local LogoText = Instance.new("TextLabel", LogoFrame)
+LogoText.Size = UDim2.new(1, 0, 1, 0)
+LogoText.BackgroundTransparency = 1
+LogoText.Text = "NEXUS"
+LogoText.Font = Enum.Font.GothamBold
+LogoText.TextSize = 24
+LogoText.TextColor3 = Color3.fromRGB(255, 255, 255)
+LogoText.TextXAlignment = Enum.TextXAlignment.Center
+
+local Stroke = LogoText:FindFirstChildOfClass("UIStroke")
+if Stroke then Stroke:Destroy() end
+
+local LogoGradient = Instance.new("UIGradient", LogoText)
+LogoGradient.Rotation = 45 
+
+task.spawn(function()
+    local counter = 0
+    while task.wait(0.05) do
+        counter = counter + 0.05
+        if counter > 1 then counter = 0 end
+        
+        LogoGradient.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, Color3.fromHSV(counter, 0.6, 1)),
+            ColorSequenceKeypoint.new(0.5, Color3.fromHSV((counter + 0.1) % 1, 0.6, 1)),
+            ColorSequenceKeypoint.new(1, Color3.fromHSV((counter + 0.2) % 1, 0.6, 1))
+        })
+    end
+end)
+
+local LogoStroke = Instance.new("UIStroke", LogoText)
+LogoStroke.Color = CurrentTheme.Accent
+LogoStroke.Thickness = 1
+LogoStroke.Transparency = 0.5
+
 table.insert(UI_Elements.Backgrounds, Sidebar)
 
 local ContentFrame = Instance.new("Frame", MainFrame)
@@ -369,12 +409,12 @@ local function CreateTab(name, pos)
     end)
 end
 
-CreateTab("Movement", 15)
-CreateTab("Visuals", 55)
-CreateTab("Combat", 95)
-CreateTab("Keybinds", 135)
-CreateTab("Fun", 175)
-CreateTab("Themes", 215)
+CreateTab("Movement", 65)
+CreateTab("Visuals",  105)
+CreateTab("Combat",   145)
+CreateTab("Keybinds", 185)
+CreateTab("Fun",      225)
+CreateTab("Themes",   265)
 
 -- ==================== UPDATED UI CREATORS ====================
 local function CreateToggle(text, pos, default, parent, callback)
