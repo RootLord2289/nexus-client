@@ -770,6 +770,7 @@ RunService.Stepped:Connect(function()
 end)
 
 UIS.InputBegan:Connect(function(i, gpe)
+    if gpe then return end
     if i.UserInputType == Enum.UserInputType.MouseButton1 then HoldingLMB = true end
     if i.UserInputType == Enum.UserInputType.MouseButton2 then HoldingRMB = true end
     
