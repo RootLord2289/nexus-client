@@ -27,18 +27,12 @@ notifyLabel.RichText = true
 local function showNotify(status)
     lastNotifyId = lastNotifyId + 1
     local currentId = lastNotifyId
-    
     local color = status and "rgb(0, 255, 120)" or "rgb(255, 60, 60)"
     local text = status and "ON" or "OFF"
-    
     notifyLabel.Text = "Clicker: <font color='"..color.."'>"..text.."</font>"
     notifyLabel.Size = UDim2.new(1, 0, 0, 0)
     notifyLabel.TextTransparency = 0
-    
-    TweenService:Create(notifyLabel, TweenInfo.new(0.4, Enum.EasingStyle.Back), {
-        Size = UDim2.new(1, 0, 0, 120)
-    }):Play()
-    
+    TweenService:Create(notifyLabel, TweenInfo.new(0.4, Enum.EasingStyle.Back), {Size = UDim2.new(1, 0, 0, 120)}):Play()
     task.delay(1.0, function()
         if lastNotifyId == currentId then
             TweenService:Create(notifyLabel, TweenInfo.new(0.4), {TextTransparency = 1}):Play()
@@ -47,16 +41,16 @@ local function showNotify(status)
 end
 
 local main = Instance.new("Frame")
-main.Size = UDim2.new(0, 0, 0, 0)
+main.AnchorPoint = Vector2.new(0.5, 0.5)
+main.Size = UDim2.new(0, 240, 0, 150)
 main.Position = UDim2.new(0.5, 0, 0.5, 0)
 main.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
 main.BorderSizePixel = 0
 main.Visible = false
-main.ClipsDescendants = true
 main.Parent = screen
 
-local targetSize = UDim2.new(0, 240, 0, 150)
-local targetPos = UDim2.new(0.5, -120, 0.5, -75)
+local mainScale = Instance.new("UIScale", main)
+mainScale.Scale = 0
 
 Instance.new("UICorner", main).CornerRadius = UDim.new(0, 12)
 local stroke = Instance.new("UIStroke", main)
@@ -90,39 +84,24 @@ hint.TextColor3 = Color3.fromRGB(100, 100, 100)
 hint.Font = Enum.Font.GothamMedium
 hint.TextSize = 12
 
+local function animateUI(show)
+    if show then
+        main.Visible = true
+        TweenService:Create(mainScale, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Scale = 1}):Play()
+    else
+        local t = TweenService:Create(mainScale, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In), {Scale = 0})
+        t:Play()
+        t.Completed:Connect(function()
+            if not visible then main.Visible = false end
+        end)
+    end
+end
+
 input.FocusLost:Connect(function()
     local val = tonumber(input.Text:match("%d+")) or 20
     cps = math.clamp(val, 1, 240)
     input.Text = cps .. " CPS"
 end)
-
-local function animateUI(show)
-    local currentPos = main.Position
-    local currentSize = main.Size
-
-    if show then
-        main.Visible = true
-        if currentSize.X.Offset > 50 then
-            TweenService:Create(main, TweenInfo.new(0.4, Enum.EasingStyle.Back), {
-                Size = UDim2.new(0, 240, 0, 150)
-            }):Play()
-        else
-            main.Size = UDim2.new(0, 0, 0, 0)
-            main.Position = UDim2.new(0.5, 0, 0.5, 0)
-            TweenService:Create(main, TweenInfo.new(0.4, Enum.EasingStyle.Back), {
-                Size = UDim2.new(0, 240, 0, 150),
-                Position = UDim2.new(0.5, -120, 0.5, -75)
-            }):Play()
-        end
-    else
-        local t = TweenService:Create(main, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
-            Size = UDim2.new(0, 0, 0, 0),
-            Position = currentPos + UDim2.new(0, main.Size.X.Offset/2, 0, main.Size.Y.Offset/2)
-        })
-        t:Play()
-        t.Completed:Connect(function() if not visible then main.Visible = false end end)
-    end
-end
 
 task.spawn(function()
     while true do
