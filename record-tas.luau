@@ -1,6 +1,7 @@
 local UIS = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
+local CoreGui = game:GetService("CoreGui")
 local player = game.Players.LocalPlayer
 
 local recording = {}
@@ -8,7 +9,7 @@ local isRecording = false
 local isPlaying = false
 local shouldStopPlayback = false
 
-local screenGui = Instance.new("ScreenGui", player.PlayerGui)
+local screenGui = Instance.new("ScreenGui", CoreGui)
 screenGui.Name = "Sakurasi_Ultimate_Recorder"
 screenGui.ResetOnSpawn = false
 
@@ -22,12 +23,24 @@ notifyLabel.Font = Enum.Font.GothamBold
 notifyLabel.TextSize = 55
 notifyLabel.TextScaled = true
 
+local lastNotifyId = 0
+
 local function showNotify(text)
+    lastNotifyId = lastNotifyId + 1 
+    local currentId = lastNotifyId
+    
     notifyLabel.Text = text
     notifyLabel.Size = UDim2.new(1, 0, 0, 0)
-    TweenService:Create(notifyLabel, TweenInfo.new(0.4, Enum.EasingStyle.Back), {TextTransparency = 0, Size = UDim2.new(1, 0, 0, 100)}):Play()
+    
+    TweenService:Create(notifyLabel, TweenInfo.new(0.4, Enum.EasingStyle.Back), {
+        TextTransparency = 0, 
+        Size = UDim2.new(1, 0, 0, 100)
+    }):Play()
+    
     task.delay(1.2, function()
-        TweenService:Create(notifyLabel, TweenInfo.new(0.4), {TextTransparency = 1}):Play()
+        if lastNotifyId == currentId then
+            TweenService:Create(notifyLabel, TweenInfo.new(0.4), {TextTransparency = 1}):Play()
+        end
     end)
 end
 
@@ -46,7 +59,43 @@ local layout = Instance.new("UIListLayout", frame)
 layout.FillDirection = Enum.FillDirection.Horizontal
 layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 layout.VerticalAlignment = Enum.VerticalAlignment.Center
-layout.Padding = UDim.new(0, 20)
+layout.Padding = UDim.new(0, 25) 
+
+local function createBtn(text, color)
+    local btn = Instance.new("TextButton", frame)
+    btn.Size = UDim2.new(0, 120, 0, 50)
+    btn.Text = text
+    btn.BackgroundColor3 = color
+    btn.BackgroundTransparency = 0.3
+    btn.TextColor3 = Color3.new(1, 1, 1)
+    btn.Font = Enum.Font.GothamBold
+    btn.TextSize = 16
+    btn.AutoButtonColor = false
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 12)
+    
+    btn.MouseEnter:Connect(function()
+        TweenService:Create(btn, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+            BackgroundTransparency = 0.05, 
+            Size = UDim2.new(0, 125, 0, 55)
+        }):Play()
+    end)
+    
+    btn.MouseLeave:Connect(function()
+        TweenService:Create(btn, TweenInfo.new(0.2, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+            BackgroundTransparency = 0.3, 
+            Size = UDim2.new(0, 120, 0, 50)
+        }):Play()
+    end)
+    
+    btn.MouseButton1Down:Connect(function()
+        btn:TweenSize(UDim2.new(0, 110, 0, 40), "Out", "Quad", 0.05, true)
+    end)
+    btn.MouseButton1Up:Connect(function()
+        btn:TweenSize(UDim2.new(0, 125, 0, 55), "Out", "Back", 0.1, true)
+    end)
+    
+    return btn
+end
 
 local function toggleRecording()
     if isPlaying then return end
@@ -64,12 +113,7 @@ local startBtn
 
 local function playRecording()
     if isRecording then return end
-    
-    if isPlaying then
-        shouldStopPlayback = true
-        return
-    end
-
+    if isPlaying then shouldStopPlayback = true return end
     if #recording == 0 then return end
     
     isPlaying = true
@@ -96,28 +140,6 @@ local function playRecording()
     startBtn.Text = "START"
     startBtn.BackgroundColor3 = Color3.fromRGB(50, 180, 50)
     showNotify("REPLAY FINISHED")
-end
-
-local function createBtn(text, color)
-    local btn = Instance.new("TextButton", frame)
-    btn.Size = UDim2.new(0, 120, 0, 50)
-    btn.Text = text
-    btn.BackgroundColor3 = color
-    btn.BackgroundTransparency = 0.3
-    btn.TextColor3 = Color3.new(1, 1, 1)
-    btn.Font = Enum.Font.GothamBold
-    btn.TextSize = 16
-    btn.AutoButtonColor = false
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 12)
-    
-    btn.MouseEnter:Connect(function()
-        TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundTransparency = 0.1, Size = UDim2.new(0, 125, 0, 55)}):Play()
-    end)
-    btn.MouseLeave:Connect(function()
-        TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundTransparency = 0.3, Size = UDim2.new(0, 120, 0, 50)}):Play()
-    end)
-    
-    return btn
 end
 
 local recBtn = createBtn("RECORD", Color3.fromRGB(180, 50, 50))
