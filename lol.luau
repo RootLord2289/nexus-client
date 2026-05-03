@@ -5,19 +5,37 @@ local TweenService = game:GetService("TweenService")
 local Player = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 local Flying, Noclip = false, false
-local S3xEnabled, Spin3313Enabled = false, false
-local IsSpinning, IsS3xing = false, false
+local Spin3313Enabled = false
+local IsSpinning = false
 local FlySpeed, WalkSpeed, JumpPower = 50, 16, 50
 local SpinSpeed = 3313
 local FlyKey, NoclipKey, MenuKey = Enum.KeyCode.J, Enum.KeyCode.N, Enum.KeyCode.Insert
-local S3xKey, SpinKey = Enum.KeyCode.H, Enum.KeyCode.V
+local SpinKey = Enum.KeyCode.V
 local SpamKey = Enum.KeyCode.M
 local IsBinding = false
 -- --- CONFIGS ---
-local ESP_Config = { Enabled = false, Boxes = false, Names = false, Health = false, Glow = false, VisCheck = false }
-local Aim_Config = { Enabled = false, ShowFOV = false, LMB_Active = false, RMB_Active = false, Radius = 150, Smooth = 0.2, Instant = 1.0 }
+local ESP_Config = {
+    Enabled = false,
+    Boxes = false,
+    Names = false,
+    Health = false,
+    Glow = false,
+    VisCheck = false
+}
+local Aim_Config = {
+    Enabled = false,
+    ShowFOV = false,
+    LMB_Active = false,
+    RMB_Active = false,
+    Radius = 150,
+    Smooth = 0.2,
+    Instant = 1.0
+}
 -- --- CHEATS LIST CONFIG ---
-local List_Config = { Enabled = false, Position = "TopRight" }
+local List_Config = {
+    Enabled = false,
+    Position = "TopRight"
+}
 local ActiveLabels = {}
 local ESP_Objects = {}
 local VISIBLE_COLOR = Color3.fromRGB(0, 255, 0)
@@ -90,12 +108,10 @@ local UI_Elements = {
 local function ApplyTheme(themeName)
     local t = Themes[themeName]
     if not t then return end
-   
     CurrentTheme.Background = t.Bg
     CurrentTheme.Secondary = t.Sec
     CurrentTheme.Text = t.Txt
     CurrentTheme.Accent = t.Acc
-   
     for _, obj in pairs(UI_Elements.Backgrounds) do
         obj.BackgroundColor3 = t.Bg
     end
@@ -109,7 +125,6 @@ local function ApplyTheme(themeName)
     for _, obj in pairs(UI_Elements.Texts) do
         obj.TextColor3 = t.Txt
     end
-   
     for _, container in pairs(ActiveLabels) do
         container.BackgroundColor3 = t.Sec
         local lbl = container:FindFirstChildOfClass("TextLabel")
@@ -119,7 +134,6 @@ local function ApplyTheme(themeName)
             lbl.Text = cleanName .. ": <font color='rgb(" .. math.floor(t.Acc.R*255) .. "," .. math.floor(t.Acc.G*255) .. "," .. math.floor(t.Acc.B*255) .. ")'>ON</font>"
         end
     end
-   
     NotifyFrame.BackgroundColor3 = t.Sec
     NotifyLabel.TextColor3 = t.Txt
 end
@@ -191,23 +205,15 @@ local function UpdateCheatList(name, state)
             table.insert(UI_Elements.Secondary, container)
             table.insert(UI_Elements.Texts, Label)
             ActiveLabels[name] = container
-            TweenService:Create(container, TweenInfo.new(0.4, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
-                Size = UDim2.new(0, 0, 0, 32), BackgroundTransparency = 0
-            }):Play()
-            TweenService:Create(Label, TweenInfo.new(0.4, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
-                TextTransparency = 0
-            }):Play()
+            TweenService:Create(container, TweenInfo.new(0.4, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), { Size = UDim2.new(0, 0, 0, 32), BackgroundTransparency = 0 }):Play()
+            TweenService:Create(Label, TweenInfo.new(0.4, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), { TextTransparency = 0 }):Play()
         end
     else
         if ActiveLabels[name] then
             local item = ActiveLabels[name]
             ActiveLabels[name] = nil
-            local t1 = TweenService:Create(item, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {
-                Size = UDim2.new(0, 0, 0, 0), BackgroundTransparency = 1
-            })
-            local t2 = TweenService:Create(item:FindFirstChildOfClass("TextLabel"), TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.In), {
-                TextTransparency = 1
-            })
+            local t1 = TweenService:Create(item, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.In), { Size = UDim2.new(0, 0, 0, 0), BackgroundTransparency = 1 })
+            local t2 = TweenService:Create(item:FindFirstChildOfClass("TextLabel"), TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.In), { TextTransparency = 1 })
             t1:Play(); t2:Play()
             t1.Completed:Connect(function() item:Destroy() end)
         end
@@ -385,10 +391,8 @@ local function CreateTab(name, pos)
     btn.TextSize = 13
     btn.Name = name
     Instance.new("UICorner", btn)
-   
     table.insert(UI_Elements.Secondary, btn)
     table.insert(UI_Elements.Texts, btn)
-   
     btn.MouseButton1Click:Connect(function()
         for pName, p in pairs(Pages) do
             p.Visible = (pName == name)
@@ -417,10 +421,8 @@ local function CreateToggle(text, pos, default, parent, callback)
     btn.Font = Enum.Font.GothamBold
     btn.TextSize = 11
     Instance.new("UICorner", btn)
-   
     table.insert(UI_Elements.Secondary, btn)
     table.insert(UI_Elements.Texts, btn)
-   
     btn.MouseButton1Click:Connect(function()
         local currentState = btn:GetAttribute("Active") or false
         local newState = not currentState
@@ -442,7 +444,6 @@ local function CreateInput(text, pos, default, parent, callback)
     Label.TextSize = 11
     Label.TextXAlignment = Enum.TextXAlignment.Left
     table.insert(UI_Elements.Texts, Label)
-   
     local Input = Instance.new("TextBox", parent)
     Input.Size = UDim2.new(0, 100, 0, 30)
     Input.Position = pos + UDim2.new(0, 110, 0, 0)
@@ -453,10 +454,8 @@ local function CreateInput(text, pos, default, parent, callback)
     Input.TextSize = 14
     Input.ClearTextOnFocus = false
     Instance.new("UICorner", Input)
-   
     table.insert(UI_Elements.Secondary, Input)
     table.insert(UI_Elements.Texts, Input)
-   
     Input.FocusLost:Connect(function()
         local num = tonumber(Input.Text)
         if num then callback(num) end
@@ -473,7 +472,6 @@ local function CreateBind(text, pos, defaultKey, parent, callback)
     Label.TextSize = 11
     Label.TextXAlignment = Enum.TextXAlignment.Left
     table.insert(UI_Elements.Texts, Label)
-   
     local BindBtn = Instance.new("TextButton", parent)
     BindBtn.Size = UDim2.new(0, 100, 0, 30)
     BindBtn.Position = pos + UDim2.new(0, 110, 0, 0)
@@ -483,10 +481,8 @@ local function CreateBind(text, pos, defaultKey, parent, callback)
     BindBtn.Font = Enum.Font.GothamBold
     BindBtn.TextSize = 12
     Instance.new("UICorner", BindBtn)
-   
     table.insert(UI_Elements.Secondary, BindBtn)
     table.insert(UI_Elements.Texts, BindBtn)
-   
     BindBtn.MouseButton1Click:Connect(function()
         if IsBinding then return end
         IsBinding = true
@@ -512,7 +508,11 @@ CreateInput("FLY SPD", UDim2.new(0, 10, 0, 115), FlySpeed, Pages.Movement, funct
 -- Visuals
 CreateToggle("ESP MASTER", UDim2.new(0, 10, 0, 10), false, Pages.Visuals, function(s)
     ESP_Config.Enabled = s
-    if not s then for _, p in pairs(Players:GetPlayers()) do removeESP(p) end end
+    if not s then
+        for _, p in pairs(Players:GetPlayers()) do
+            removeESP(p)
+        end
+    end
     UpdateCheatList("ESP", s)
 end)
 CreateToggle("Show Boxes", UDim2.new(0, 10, 0, 45), false, Pages.Visuals, function(s) ESP_Config.Boxes = s end)
@@ -533,14 +533,15 @@ CreateToggle("Show List", UDim2.new(0, 10, 0, 245), false, Pages.Visuals, functi
     List_Config.Enabled = s
     ListFrame.Visible = s
     if not s then
-        for n, l in pairs(ActiveLabels) do l:Destroy() end
+        for n, l in pairs(ActiveLabels) do
+            l:Destroy()
+        end
         ActiveLabels = {}
     else
         UpdateCheatList("ESP", ESP_Config.Enabled)
         UpdateCheatList("Aimbot", Aim_Config.Enabled)
         UpdateCheatList("Fly", Flying)
         UpdateCheatList("Noclip", Noclip)
-        UpdateCheatList("S3X", IsS3xing)
         UpdateCheatList("Spin", IsSpinning)
         UpdateCheatList("Spam", ChatSpamEnabled)
     end
@@ -580,16 +581,11 @@ end)
 -- Keybinds
 CreateBind("FLY KEY", UDim2.new(0, 10, 0, 10), FlyKey, Pages.Keybinds, function(k) FlyKey = k end)
 CreateBind("NOCLIP", UDim2.new(0, 10, 0, 45), NoclipKey, Pages.Keybinds, function(k) NoclipKey = k end)
-CreateBind("S3X KEY", UDim2.new(0, 10, 0, 80), S3xKey, Pages.Keybinds, function(k) S3xKey = k end)
-CreateBind("3313 KEY", UDim2.new(0, 10, 0, 115), SpinKey, Pages.Keybinds, function(k) SpinKey = k end)
-CreateBind("SPAM KEY", UDim2.new(0, 10, 0, 185), SpamKey, Pages.Keybinds, function(k) SpamKey = k end)
+CreateBind("3313 KEY", UDim2.new(0, 10, 0, 80), SpinKey, Pages.Keybinds, function(k) SpinKey = k end)
+CreateBind("SPAM KEY", UDim2.new(0, 10, 0, 115), SpamKey, Pages.Keybinds, function(k) SpamKey = k end)
 CreateBind("MENU", UDim2.new(0, 10, 0, 150), MenuKey, Pages.Keybinds, function(k) MenuKey = k end)
 -- Fun
-CreateToggle("S3X", UDim2.new(0, 10, 0, 10), false, Pages.Fun, function(s)
-    S3xEnabled = s
-    if not s then IsS3xing = false end
-end)
-CreateToggle("3313 SPIN", UDim2.new(0, 10, 0, 45), false, Pages.Fun, function(s)
+CreateToggle("3313 SPIN", UDim2.new(0, 10, 0, 10), false, Pages.Fun, function(s)
     Spin3313Enabled = s
     if not s then IsSpinning = false end
 end)
@@ -597,25 +593,22 @@ end)
 local SpamDiv = Instance.new("TextLabel", Pages.Fun)
 SpamDiv.Text = "- - Chat Spam - -"
 SpamDiv.Size = UDim2.new(0, 210, 0, 20)
-SpamDiv.Position = UDim2.new(0, 10, 0, 85)
+SpamDiv.Position = UDim2.new(0, 10, 0, 55)
 SpamDiv.BackgroundTransparency = 1
 SpamDiv.TextColor3 = Color3.fromRGB(150, 150, 150)
 SpamDiv.Font = Enum.Font.GothamBold
 SpamDiv.TextSize = 10
 table.insert(UI_Elements.Texts, SpamDiv)
-
--- ИСПРАВЛЕННЫЙ ТОГГЛ СПАМА С СИНХРОНИЗАЦИЕЙ
-local SpamToggle = CreateToggle("SPAM", UDim2.new(0, 10, 0, 110), false, Pages.Fun, function(s)
+local SpamToggle = CreateToggle("SPAM", UDim2.new(0, 10, 0, 80), false, Pages.Fun, function(s)
     ChatSpamEnabled = s
     UpdateCheatList("Spam", s)
     ShowNotify("Spam", s and "ON" or "OFF", s)
 end)
-
 -- Message text input
 local MsgLabel = Instance.new("TextLabel", Pages.Fun)
 MsgLabel.Text = "Message:"
 MsgLabel.Size = UDim2.new(0, 80, 0, 25)
-MsgLabel.Position = UDim2.new(0, 10, 0, 148)
+MsgLabel.Position = UDim2.new(0, 10, 0, 118)
 MsgLabel.BackgroundTransparency = 1
 MsgLabel.TextColor3 = CurrentTheme.Text
 MsgLabel.Font = Enum.Font.GothamBold
@@ -624,7 +617,7 @@ MsgLabel.TextXAlignment = Enum.TextXAlignment.Left
 table.insert(UI_Elements.Texts, MsgLabel)
 local MsgInput = Instance.new("TextBox", Pages.Fun)
 MsgInput.Size = UDim2.new(0, 130, 0, 30)
-MsgInput.Position = UDim2.new(0, 90, 0, 148)
+MsgInput.Position = UDim2.new(0, 90, 0, 118)
 MsgInput.Text = ChatMessage
 MsgInput.BackgroundColor3 = CurrentTheme.Secondary
 MsgInput.TextColor3 = CurrentTheme.Text
@@ -635,10 +628,12 @@ Instance.new("UICorner", MsgInput)
 table.insert(UI_Elements.Secondary, MsgInput)
 table.insert(UI_Elements.Texts, MsgInput)
 MsgInput.FocusLost:Connect(function()
-    if MsgInput.Text ~= "" then ChatMessage = MsgInput.Text end
+    if MsgInput.Text ~= "" then
+        ChatMessage = MsgInput.Text
+    end
 end)
 -- Delay input
-CreateInput("Delay(s)", UDim2.new(0, 10, 0, 183), ChatSpamDelay, Pages.Fun, function(v)
+CreateInput("Delay(s)", UDim2.new(0, 10, 0, 153), ChatSpamDelay, Pages.Fun, function(v)
     ChatSpamDelay = math.max(0.3, v)
 end)
 -- ==================== THEMES PAGE ====================
@@ -766,34 +761,23 @@ end)
 RunService.Stepped:Connect(function()
     if Noclip and Player.Character then
         for _, v in pairs(Player.Character:GetDescendants()) do
-            if v:IsA("BasePart") then v.CanCollide = false end
+            if v:IsA("BasePart") then
+                v.CanCollide = false
+            end
         end
     end
     if Player.Character and Player.Character:FindFirstChild("Humanoid") then
         Player.Character.Humanoid.WalkSpeed = WalkSpeed
         Player.Character.Humanoid.JumpPower = JumpPower
     end
-    if IsSpinning and Player.Character:FindFirstChild("HumanoidRootPart") then
+    if IsSpinning and Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
         Player.Character.HumanoidRootPart.CFrame *= CFrame.Angles(0, math.rad(SpinSpeed/60), 0)
-    end
-    if IsS3xing and Player.Character:FindFirstChild("HumanoidRootPart") then
-        local t, d = nil, math.huge
-        for _, p in pairs(Players:GetPlayers()) do
-            if p ~= Player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-                local dist = (Player.Character.HumanoidRootPart.Position - p.Character.HumanoidRootPart.Position).Magnitude
-                if dist < d then t, d = p, dist end
-            end
-        end
-        if t then
-            Player.Character.HumanoidRootPart.CFrame = t.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, 1 + math.sin(tick()*25)*1.5)
-        end
     end
 end)
 UIS.InputBegan:Connect(function(i, gpe)
     if gpe then return end
     if i.UserInputType == Enum.UserInputType.MouseButton1 then HoldingLMB = true end
     if i.UserInputType == Enum.UserInputType.MouseButton2 then HoldingRMB = true end
-   
     if IsBinding then return end
     if i.KeyCode == MenuKey then
         ToggleMenu()
@@ -811,42 +795,29 @@ UIS.InputBegan:Connect(function(i, gpe)
                 bg.Name = "FlyG"
                 bg.MaxTorque = Vector3.new(1e6, 1e6, 1e6)
                 bg.CFrame = hrp.CFrame
-               
                 if hum then hum.PlatformStand = true end
             else
                 if hrp:FindFirstChild("FlyV") then hrp.FlyV:Destroy() end
                 if hrp:FindFirstChild("FlyG") then hrp.FlyG:Destroy() end
                 if hum then hum.PlatformStand = false end
             end
-           
             ShowNotify("Fly", Flying and "ON" or "OFF", Flying)
             UpdateCheatList("Fly", Flying)
         end
     elseif i.KeyCode == SpamKey then
         ChatSpamEnabled = not ChatSpamEnabled
-        
-        -- СИНХРОНИЗАЦИЯ КНОПКИ СПАМА С КЕЙБИНДОМ
         if SpamToggle then
             local newState = ChatSpamEnabled
             SpamToggle:SetAttribute("Active", newState)
             SpamToggle.BackgroundColor3 = newState and CurrentTheme.Accent or CurrentTheme.Secondary
             SpamToggle.Text = "SPAM: " .. (newState and "ON" or "OFF")
         end
-        
         ShowNotify("Spam", ChatSpamEnabled and "ON" or "OFF", ChatSpamEnabled)
         UpdateCheatList("Spam", ChatSpamEnabled)
     elseif i.KeyCode == NoclipKey then
         Noclip = not Noclip
         ShowNotify("Noclip", Noclip and "ON" or "OFF", Noclip)
         UpdateCheatList("Noclip", Noclip)
-    elseif i.KeyCode == S3xKey then
-        if not S3xEnabled then
-            ShowNotify("Enable S3X in menu!", "", false)
-        else
-            IsS3xing = not IsS3xing
-            ShowNotify("S3X", IsS3xing and "ON" or "OFF", IsS3xing)
-            UpdateCheatList("S3X", IsS3xing)
-        end
     elseif i.KeyCode == SpinKey then
         if not Spin3313Enabled then
             ShowNotify("Enable 3313 in menu!", "", false)
